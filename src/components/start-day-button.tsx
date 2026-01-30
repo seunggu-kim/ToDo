@@ -98,24 +98,30 @@ export function StartDayButton({ todoCount }: StartDayButtonProps) {
   }
 
   return (
-    <Button
-      onClick={handleStartDay}
-      disabled={isSubmitting || todoCount === 0}
-      className="w-full h-14 text-lg"
-      size="lg"
-    >
-      {isSubmitting ? (
-        "시작 중..."
-      ) : (
-        <>
-          🚀 오늘 시작하기
-          {todoCount > 0 && (
-            <Badge variant="secondary" className="ml-2">
-              {todoCount}개의 할 일
-            </Badge>
-          )}
-        </>
-      )}
-    </Button>
+    <div className="space-y-2">
+      <Button
+        onClick={handleStartDay}
+        disabled={isSubmitting || todoCount === 0}
+        className="w-full h-14 text-lg"
+        size="lg"
+      >
+        {isSubmitting ? (
+          "시작 중..."
+        ) : (
+          <>
+            🚀 오늘 시작하기
+            {todoCount > 0 && (
+              <Badge variant="secondary" className="ml-2">
+                {todoCount}개의 할 일
+              </Badge>
+            )}
+          </>
+        )}
+      </Button>
+      <div className="flex flex-col gap-1 text-xs text-muted-foreground px-1">
+        <p>💡 버튼을 누르면 팀원들에게 슬랙 알림이 전송됩니다</p>
+        <p>✏️ 시작 후에도 언제든 할일을 추가하거나 수정할 수 있어요</p>
+      </div>
+    </div>
   );
 }
