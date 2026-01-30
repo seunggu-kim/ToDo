@@ -1,0 +1,24 @@
+{
+  "name": "팀 투두리스트",
+  "short_name": "팀 투두",
+  "description": "재택 팀원들이 오늘 할일을 공유하고 업무 시작을 선언하는 협업 투두리스트",
+  "start_url": "/today",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#000000",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

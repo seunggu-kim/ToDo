@@ -1,9 +1,22 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from "recharts";
+
+const BarChart = lazy(() => import("recharts").then(mod => ({ default: mod.BarChart })));
+const Bar = lazy(() => import("recharts").then(mod => ({ default: mod.Bar })));
+const XAxis = lazy(() => import("recharts").then(mod => ({ default: mod.XAxis })));
+const YAxis = lazy(() => import("recharts").then(mod => ({ default: mod.YAxis })));
+const CartesianGrid = lazy(() => import("recharts").then(mod => ({ default: mod.CartesianGrid })));
+const Tooltip = lazy(() => import("recharts").then(mod => ({ default: mod.Tooltip })));
+const Legend = lazy(() => import("recharts").then(mod => ({ default: mod.Legend })));
+const ResponsiveContainer = lazy(() => import("recharts").then(mod => ({ default: mod.ResponsiveContainer })));
+const RadarChart = lazy(() => import("recharts").then(mod => ({ default: mod.RadarChart })));
+const PolarGrid = lazy(() => import("recharts").then(mod => ({ default: mod.PolarGrid })));
+const PolarAngleAxis = lazy(() => import("recharts").then(mod => ({ default: mod.PolarAngleAxis })));
+const PolarRadiusAxis = lazy(() => import("recharts").then(mod => ({ default: mod.PolarRadiusAxis })));
+const Radar = lazy(() => import("recharts").then(mod => ({ default: mod.Radar })));
 
 interface WeeklyStat {
   week: string;
@@ -128,16 +141,18 @@ export default function MonthlyStatsPage() {
           <CardDescription>4주간의 완료율 변화</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.byWeek}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="week" />
-              <YAxis />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="completionRate" name="완료율 (%)" fill="#10b981" />
-            </BarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<div className="flex items-center justify-center h-[300px]">차트 로딩 중...</div>}>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.byWeek}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="week" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="completionRate" name="완료율 (%)" fill="#10b981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Suspense>
         </CardContent>
       </Card>
 
@@ -147,16 +162,18 @@ export default function MonthlyStatsPage() {
           <CardDescription>어느 요일에 가장 많이 완료하나요?</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={400}>
-            <RadarChart data={data.byDayOfWeek}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="day" />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} />
-              <Radar name="완료율 (%)" dataKey="completionRate" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-              <Tooltip />
-              <Legend />
-            </RadarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<div className="flex items-center justify-center h-[400px]">차트 로딩 중...</div>}>
+            <ResponsiveContainer width="100%" height={400}>
+              <RadarChart data={data.byDayOfWeek}>
+                <PolarGrid />
+                <PolarAngleAxis dataKey="day" />
+                <PolarRadiusAxis angle={90} domain={[0, 100]} />
+                <Radar name="완료율 (%)" dataKey="completionRate" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
+                <Tooltip />
+                <Legend />
+              </RadarChart>
+            </ResponsiveContainer>
+          </Suspense>
         </CardContent>
       </Card>
 

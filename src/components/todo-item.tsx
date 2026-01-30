@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import confetti from "canvas-confetti";
 
 interface Todo {
   id: string;
@@ -25,6 +26,29 @@ interface TodoItemProps {
 export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(todo.content);
+  const [prevCompleted, setPrevCompleted] = useState(todo.completed);
+
+  useEffect(() => {
+    // 완료 상태로 변경되었을 때 애니메이션
+    if (!prevCompleted && todo.completed) {
+      triggerConfetti(todo.carryOverCount);
+    }
+    setPrevCompleted(todo.completed);
+  }, [todo.completed]);
+
+  const triggerConfetti = (carryOverCount: number) => {
+    const count = carryOverCount >= 3 ? 100 : 50; // 많이 미룬 할일은 더 화려하게
+    const spread = carryOverCount >= 3 ? 120 : 60;
+
+    confetti({
+      particleCount: count,
+      spread: spread,
+      origin: { y: 0.6 },
+      colors: carryOverCount >= 3 
+        ? ['#ff0000', '#ff6600', '#ffaa00'] // 빨강/주황 계열
+        : ['#10b981', '#3b82f6', '#8b5cf6'], // 초록/파랑/보라 계열
+    });
+  };
 
   const handleSave = () => {
     if (editContent.trim()) {
@@ -86,7 +110,11 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) 
       )}
 
       {todo.carryOverCount > 0 && (
-        <Badge variant="outline" className="text-xs">
+        <Badge 
+          variant={todo.carryOverCount >= 3 ? "destructive" : "outline"} 
+          className="text-xs"
+        >
+          {todo.carryOverCount >= 3 && "🔥 "}
           {todo.carryOverCount}회 이월
         </Badge>
       )}

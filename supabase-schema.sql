@@ -92,6 +92,18 @@ CREATE INDEX "Todo_userId_date_idx" ON "Todo"("userId", "date");
 CREATE INDEX "Todo_teamId_date_idx" ON "Todo"("teamId", "date");
 CREATE INDEX "DayStart_userId_date_idx" ON "DayStart"("userId", "date");
 
+-- TodoTemplate 테이블
+CREATE TABLE "TodoTemplate" (
+    "id" TEXT NOT NULL PRIMARY KEY,
+    "content" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userId" TEXT NOT NULL,
+    CONSTRAINT "TodoTemplate_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE
+);
+
+-- 인덱스 추가
+CREATE INDEX "TodoTemplate_userId_idx" ON "TodoTemplate"("userId");
+
 -- Foreign Key 제약조건 추가
 ALTER TABLE "Account" ADD CONSTRAINT "Account_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

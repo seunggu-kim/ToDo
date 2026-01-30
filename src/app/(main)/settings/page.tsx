@@ -22,15 +22,24 @@ interface Team {
   }[];
 }
 
+interface TodoTemplate {
+  id: string;
+  content: string;
+  createdAt: string;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [team, setTeam] = useState<Team | null>(null);
   const [slackWebhookUrl, setSlackWebhookUrl] = useState("");
   const [teamName, setTeamName] = useState("");
+  const [templates, setTemplates] = useState<TodoTemplate[]>([]);
+  const [newTemplate, setNewTemplate] = useState("");
 
   useEffect(() => {
     fetchTeam();
+    fetchTemplates();
   }, []);
 
   const fetchTeam = async () => {
@@ -47,6 +56,60 @@ export default function SettingsPage() {
       }
     } catch {
       toast.error("팀 정보를 불러오는데 실패했습니다.");
+    }
+  };
+
+  const fetchTemplates = async () => {
+    try {
+      const response = await fetch("/api/templates");
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data);
+      }
+    } catch {
+      toast.error("템플릿 목록을 불러오는데 실패했습니다.");
+    }
+  };
+
+  const handleAddTemplate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newTemplate.trim()) return;
+
+    try {
+      const response = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newTemplate.trim() }),
+      });
+
+      if (response.ok) {
+        toast.success("템플릿이 추가되었습니다.");
+        setNewTemplate("");
+        fetchTemplates();
+      } else {
+        const data = await response.json();
+        toast.error(data.error);
+      }
+    } catch {
+      toast.error("템플릿 추가 중 오류가 발생했습니다.");
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      const response = await fetch(`/api/templates?id=${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        toast.success("템플릿이 삭제되었습니다.");
+        fetchTemplates();
+      } else {
+        const data = await response.json();
+        toast.error(data.error);
+      }
+    } catch {
+      toast.error("템플릿 삭제 중 오류가 발생했습니다.");
     }
   };
 
@@ -175,6 +238,53 @@ export default function SettingsPage() {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>할일 템플릿</CardTitle>
+          <CardDescription>
+            자주 사용하는 할일을 템플릿으로 저장하세요.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <form onSubmit={handleAddTemplate} className="flex gap-2">
+            <Input
+              value={newTemplate}
+              onChange={(e) => setNewTemplate(e.target.value)}
+              placeholder="템플릿 내용 입력..."
+              className="flex-1"
+            />
+            <Button type="submit" disabled={!newTemplate.trim()}>
+              추가
+            </Button>
+          </form>
+          
+          {templates.length > 0 ? (
+            <div className="space-y-2">
+              {templates.map((template) => (
+                <div
+                  key={template.id}
+                  className="flex items-center justify-between p-3 rounded-lg border bg-card"
+                >
+                  <p className="flex-1">{template.content}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDeleteTemplate(template.id)}
+                    className="text-muted-foreground hover:text-destructive"
+                  >
+                    삭제
+                  </Button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground text-center py-4">
+              저장된 템플릿이 없습니다.
+            </p>
+          )}
         </CardContent>
       </Card>
 

@@ -23,6 +23,13 @@ export async function GET() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // 이번 주 시작 (월요일)
+    const weekStart = new Date(today);
+    const day = weekStart.getDay();
+    const diff = weekStart.getDate() - day + (day === 0 ? -6 : 1);
+    weekStart.setDate(diff);
+    weekStart.setHours(0, 0, 0, 0);
+
     // 팀 멤버들의 오늘 데이터 가져오기
     const teamMembers = await prisma.user.findMany({
       where: { teamId: user.teamId },
@@ -131,7 +138,98 @@ export async function GET() {
       };
     }));
 
-    return NextResponse.json(dashboardData);
+    // 현재 사용자의 주간 요약 데이터
+    const myWeeklyTodos = await prisma.todo.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: weekStart,
+          lte: today,
+        },
+      },
+      select: {
+        completed: true,
+      },
+    });
+
+    const myWeeklyTotal = myWeeklyTodos.length;
+    const myWeeklyCompleted = myWeeklyTodos.filter(t => t.completed).length;
+    const myWeeklyRate = myWeeklyTotal > 0 ? Math.round((myWeeklyCompleted / myWeeklyTotal) * 100) : 0;
+
+    // 팀 평균 완료율 계산
+    const teamWeeklyTodos = await prisma.todo.findMany({
+      where: {
+        teamId: user.teamId,
+        date: {
+          gte: weekStart,
+          lte: today,
+        },
+      },
+      select: {
+        completed: true,
+      },
+    });
+
+    const teamWeeklyTotal = teamWeeklyTodos.length;
+    const teamWeeklyCompleted = teamWeeklyTodos.filter(t => t.completed).length;
+    const teamWeeklyRate = teamWeeklyTotal > 0 ? Math.round((teamWeeklyCompleted / teamWeeklyTotal) * 100) : 0;
+
+    // 현재 사용자의 이월 할일 (2회 이상)
+    const myCarriedTodos = await prisma.todo.findMany({
+      where: {
+        userId: session.user.id,
+        date: today,
+        carryOverCount: {
+          gte: 2,
+        },
+        completed: false,
+      },
+      select: {
+        id: true,
+        content: true,
+        carryOverCount: true,
+      },
+      orderBy: {
+        carryOverCount: "desc",
+      },
+    });
+
+    // 가장 많이 미룬 할일 (주간)
+    const myWeeklyCarriedTodos = await prisma.todo.findMany({
+      where: {
+        userId: session.user.id,
+        date: {
+          gte: weekStart,
+          lte: today,
+        },
+        carryOverCount: {
+          gt: 0,
+        },
+      },
+      select: {
+        content: true,
+        carryOverCount: true,
+      },
+      orderBy: {
+        carryOverCount: "desc",
+      },
+      take: 1,
+    });
+
+    const myStreak = dashboardData.find(m => m.id === session.user.id)?.streak || 0;
+
+    return NextResponse.json({
+      members: dashboardData,
+      myInsights: {
+        weeklyTotal: myWeeklyTotal,
+        weeklyCompleted: myWeeklyCompleted,
+        weeklyRate: myWeeklyRate,
+        teamWeeklyRate: teamWeeklyRate,
+        streak: myStreak,
+        mostCarriedTodo: myWeeklyCarriedTodos[0] || null,
+        carriedTodosToday: myCarriedTodos,
+      },
+    });
   } catch (error) {
     console.error("Dashboard fetch error:", error);
     return NextResponse.json({ error: "대시보드 데이터 조회 중 오류가 발생했습니다." }, { status: 500 });

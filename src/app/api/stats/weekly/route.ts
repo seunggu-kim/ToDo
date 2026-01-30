@@ -101,7 +101,18 @@ export async function GET() {
     const userArray = Object.values(userStats).map((stat) => ({
       ...stat,
       completionRate: stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0,
+      score: stat.total > 0 ? (stat.completionRate * 0.7) + (stat.completed * 0.3) : 0,
     }));
+
+    // MVP 계산 (완료율 70% + 완료 개수 30% 가중치)
+    let mvp = null;
+    if (userArray.length > 0) {
+      mvp = userArray.reduce((prev, current) => {
+        const prevScore = prev.total > 0 ? (prev.completionRate * 0.7) + (prev.completed * 0.3) : 0;
+        const currentScore = current.total > 0 ? (current.completionRate * 0.7) + (current.completed * 0.3) : 0;
+        return currentScore > prevScore ? current : prev;
+      });
+    }
 
     // 전체 통계
     const totalTodos = todos.length;
@@ -120,6 +131,7 @@ export async function GET() {
       },
       daily: dailyArray,
       byMember: userArray,
+      mvp: mvp,
     });
   } catch (error) {
     console.error("Weekly stats fetch error:", error);

@@ -1,9 +1,19 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+const LineChart = lazy(() => import("recharts").then(mod => ({ default: mod.LineChart })));
+const Line = lazy(() => import("recharts").then(mod => ({ default: mod.Line })));
+const BarChart = lazy(() => import("recharts").then(mod => ({ default: mod.BarChart })));
+const Bar = lazy(() => import("recharts").then(mod => ({ default: mod.Bar })));
+const XAxis = lazy(() => import("recharts").then(mod => ({ default: mod.XAxis })));
+const YAxis = lazy(() => import("recharts").then(mod => ({ default: mod.YAxis })));
+const CartesianGrid = lazy(() => import("recharts").then(mod => ({ default: mod.CartesianGrid })));
+const Tooltip = lazy(() => import("recharts").then(mod => ({ default: mod.Tooltip })));
+const Legend = lazy(() => import("recharts").then(mod => ({ default: mod.Legend })));
+const ResponsiveContainer = lazy(() => import("recharts").then(mod => ({ default: mod.ResponsiveContainer })));
 
 interface DailyStat {
   date: string;
@@ -18,6 +28,7 @@ interface MemberStat {
   total: number;
   completed: number;
   completionRate: number;
+  score?: number;
 }
 
 interface WeeklyData {
@@ -32,6 +43,7 @@ interface WeeklyData {
   };
   daily: DailyStat[];
   byMember: MemberStat[];
+  mvp: MemberStat | null;
 }
 
 export default function WeeklyStatsPage() {
@@ -84,6 +96,37 @@ export default function WeeklyStatsPage() {
         </p>
       </div>
 
+      {/* MVP 카드 */}
+      {data.mvp && (
+        <Card className="border-yellow-500/50 bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-950/20 dark:to-orange-950/20">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-2xl">🏆</span>
+              <span>이번 주의 MVP</span>
+            </CardTitle>
+            <CardDescription>
+              가장 열심히 활동한 팀원에게 박수를!
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-2xl font-bold">{data.mvp.name}</p>
+                <p className="text-sm text-muted-foreground">{data.mvp.email}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-yellow-600 dark:text-yellow-400">
+                  {data.mvp.completionRate}%
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {data.mvp.completed} / {data.mvp.total} 완료
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
@@ -113,27 +156,29 @@ export default function WeeklyStatsPage() {
           <CardDescription>최근 7일간의 완료율 변화</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data.daily}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return `${date.getMonth() + 1}/${date.getDate()}`;
-                }}
-              />
-              <YAxis />
-              <Tooltip 
-                labelFormatter={(value) => {
-                  const date = new Date(value as string);
-                  return date.toLocaleDateString("ko-KR");
-                }}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="completionRate" name="완료율 (%)" stroke="#10b981" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<div className="flex items-center justify-center h-[300px]">차트 로딩 중...</div>}>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={data.daily}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                  }}
+                />
+                <YAxis />
+                <Tooltip 
+                  labelFormatter={(value) => {
+                    const date = new Date(value as string);
+                    return date.toLocaleDateString("ko-KR");
+                  }}
+                />
+                <Legend />
+                <Line type="monotone" dataKey="completionRate" name="완료율 (%)" stroke="#10b981" strokeWidth={2} />
+              </LineChart>
+            </ResponsiveContainer>
+          </Suspense>
         </CardContent>
       </Card>
 
@@ -143,50 +188,66 @@ export default function WeeklyStatsPage() {
           <CardDescription>날짜별 전체/완료 투두 개수</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data.daily}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis 
-                dataKey="date"
-                tickFormatter={(value) => {
-                  const date = new Date(value);
-                  return `${date.getMonth() + 1}/${date.getDate()}`;
-                }}
-              />
-              <YAxis />
-              <Tooltip 
-                labelFormatter={(value) => {
-                  const date = new Date(value as string);
-                  return date.toLocaleDateString("ko-KR");
-                }}
-              />
-              <Legend />
-              <Bar dataKey="total" name="전체" fill="#94a3b8" />
-              <Bar dataKey="completed" name="완료" fill="#10b981" />
-            </BarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={<div className="flex items-center justify-center h-[300px]">차트 로딩 중...</div>}>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={data.daily}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date"
+                  tickFormatter={(value) => {
+                    const date = new Date(value);
+                    return `${date.getMonth() + 1}/${date.getDate()}`;
+                  }}
+                />
+                <YAxis />
+                <Tooltip 
+                  labelFormatter={(value) => {
+                    const date = new Date(value as string);
+                    return date.toLocaleDateString("ko-KR");
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="total" name="전체" fill="#94a3b8" />
+                <Bar dataKey="completed" name="완료" fill="#10b981" />
+              </BarChart>
+            </ResponsiveContainer>
+          </Suspense>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle>팀원별 통계</CardTitle>
-          <CardDescription>팀원별 주간 완료 현황</CardDescription>
+          <CardDescription>팀원별 주간 완료 현황 - 모두 꾸준히 잘하고 계시네요!</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {data.byMember.length > 0 ? (
               data.byMember.map((member, index) => (
                 <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
-                  <div>
-                    <p className="font-medium">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
+                  <div className="flex items-center gap-2">
+                    {data.mvp && member.email === data.mvp.email && (
+                      <span className="text-xl">🥇</span>
+                    )}
+                    <div>
+                      <p className="font-medium">{member.name}</p>
+                      <p className="text-sm text-muted-foreground">{member.email}</p>
+                    </div>
                   </div>
                   <div className="text-right">
                     <p className="text-lg font-bold">{member.completionRate}%</p>
                     <p className="text-sm text-muted-foreground">
                       {member.completed} / {member.total}
                     </p>
+                    {member.completionRate >= 80 && (
+                      <p className="text-xs text-green-600 dark:text-green-400">훌륭해요!</p>
+                    )}
+                    {member.completionRate >= 50 && member.completionRate < 80 && (
+                      <p className="text-xs text-blue-600 dark:text-blue-400">잘하고 있어요!</p>
+                    )}
+                    {member.completionRate < 50 && member.completionRate > 0 && (
+                      <p className="text-xs text-orange-600 dark:text-orange-400">꾸준히 해요!</p>
+                    )}
                   </div>
                 </div>
               ))

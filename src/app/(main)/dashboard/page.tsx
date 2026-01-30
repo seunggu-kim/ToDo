@@ -28,9 +28,31 @@ interface MemberData {
   streak: number;
 }
 
+interface MyInsights {
+  weeklyTotal: number;
+  weeklyCompleted: number;
+  weeklyRate: number;
+  teamWeeklyRate: number;
+  streak: number;
+  mostCarriedTodo: {
+    content: string;
+    carryOverCount: number;
+  } | null;
+  carriedTodosToday: {
+    id: string;
+    content: string;
+    carryOverCount: number;
+  }[];
+}
+
+interface DashboardData {
+  members: MemberData[];
+  myInsights: MyInsights;
+}
+
 export default function DashboardPage() {
   const router = useRouter();
-  const [members, setMembers] = useState<MemberData[]>([]);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -48,7 +70,7 @@ export default function DashboardPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setMembers(data);
+        setDashboardData(data);
       } else {
         toast.error("대시보드 데이터를 불러오는데 실패했습니다.");
       }
@@ -87,6 +109,11 @@ export default function DashboardPage() {
     );
   }
 
+  if (!dashboardData) {
+    return null;
+  }
+
+  const { members, myInsights } = dashboardData;
   const startedMembers = members.filter((m) => m.started);
   const notStartedMembers = members.filter((m) => !m.started);
 
@@ -96,6 +123,82 @@ export default function DashboardPage() {
         <h1 className="text-2xl font-bold">팀 현황</h1>
         <p className="text-muted-foreground">{today}</p>
       </div>
+
+      {/* 개인 성찰 카드 */}
+      <Card className="border-primary/50 bg-gradient-to-br from-primary/5 to-primary/10">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span>나의 이번 주</span>
+            {myInsights.streak > 0 && (
+              <Badge variant="secondary" className="ml-auto">
+                🔥 {myInsights.streak}일 연속
+              </Badge>
+            )}
+          </CardTitle>
+          <CardDescription>스스로를 돌아보는 시간</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div>
+              <div className="text-2xl font-bold">{myInsights.weeklyCompleted}</div>
+              <p className="text-xs text-muted-foreground">완료한 할일</p>
+            </div>
+            <div>
+              <div className="text-2xl font-bold">{myInsights.weeklyTotal}</div>
+              <p className="text-xs text-muted-foreground">전체 할일</p>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-primary">{myInsights.weeklyRate}%</div>
+              <p className="text-xs text-muted-foreground">내 완료율</p>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-muted-foreground">{myInsights.teamWeeklyRate}%</div>
+              <p className="text-xs text-muted-foreground">팀 평균</p>
+            </div>
+          </div>
+          
+          {myInsights.mostCarriedTodo && (
+            <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900">
+              <p className="text-sm font-medium text-orange-900 dark:text-orange-100">
+                가장 많이 미룬 할일 ({myInsights.mostCarriedTodo.carryOverCount}회)
+              </p>
+              <p className="text-sm text-orange-800 dark:text-orange-200 mt-1">
+                {myInsights.mostCarriedTodo.content}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* 이월 할일 하이라이트 */}
+      {myInsights.carriedTodosToday.length > 0 && (
+        <Card className="border-orange-500/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <span>🔥 오늘의 이월 할일</span>
+              <Badge variant="outline">{myInsights.carriedTodosToday.length}개</Badge>
+            </CardTitle>
+            <CardDescription>
+              혹시 이 할일들, 너무 어렵거나 애매한 건 아닐까요? 다시 한번 점검해보세요.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {myInsights.carriedTodosToday.map((todo) => (
+              <div
+                key={todo.id}
+                className="flex items-center justify-between p-3 rounded-lg border bg-card"
+              >
+                <span className="flex-1">{todo.content}</span>
+                <Badge variant="destructive" className="text-xs">
+                  🔥 {todo.carryOverCount}회
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      <Separator />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
