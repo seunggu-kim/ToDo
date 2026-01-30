@@ -37,7 +37,7 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [templates, setTemplates] = useState<TodoTemplate[]>([]);
-  const [showTemplates, setShowTemplates] = useState(true); // 기본값 true로 변경
+  const [showTemplates, setShowTemplates] = useState(false); // 기본값 false로 변경
   const [isAddingTemplate, setIsAddingTemplate] = useState(false);
   const [newTemplate, setNewTemplate] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);

@@ -71,10 +71,28 @@ export default function MonthlyStatsPage() {
     try {
       if (showRefreshToast) setIsRefreshing(true);
       
+      // 캐시 확인 (새로고침이 아닐 때만)
+      if (!showRefreshToast) {
+        const cacheKey = 'monthly-stats-cache';
+        const cached = localStorage.getItem(cacheKey);
+        if (cached) {
+          try {
+            const { data: cachedData, timestamp } = JSON.parse(cached);
+            const age = Date.now() - timestamp;
+            // 5분(300초) 이내면 캐시 사용
+            if (age < 5 * 60 * 1000) {
+              setData(cachedData);
+              setIsLoading(false);
+              return;
+            }
+          } catch {
+            // 캐시 파싱 실패 시 무시하고 계속 진행
+          }
+        }
+      }
+      
       const response = await fetch("/api/stats/monthly", {
-        next: showRefreshToast 
-          ? { revalidate: 0 } // 새로고침 시 캐시 무시
-          : { revalidate: 300 }, // 5분 캐싱
+        cache: "no-store",
       });
       const result = await response.json();
 
@@ -82,6 +100,12 @@ export default function MonthlyStatsPage() {
         toast.error(result.error);
       } else {
         setData(result);
+        // 캐시에 저장
+        const cacheKey = 'monthly-stats-cache';
+        localStorage.setItem(cacheKey, JSON.stringify({
+          data: result,
+          timestamp: Date.now(),
+        }));
         if (showRefreshToast) {
           toast.success("통계가 업데이트되었습니다.");
         }
