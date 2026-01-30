@@ -149,6 +149,23 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
   };
 
   const handleToggle = async (id: string, completed: boolean) => {
+    // 낙관적 UI 업데이트 - 즉시 체크박스 상태 변경
+    const previousTodos = [...todos];
+    const newTodos = todos.map((t) => (t.id === id ? { ...t, completed } : t));
+    setTodos(newTodos);
+    onTodosChange?.(newTodos);
+
+    // 모든 할일이 완료되었는지 확인
+    if (completed && newTodos.length > 0) {
+      const allCompleted = newTodos.every(t => t.completed);
+      if (allCompleted) {
+        toast.success("🎉 오늘 할일을 모두 완료했습니다!", {
+          description: "정말 멋져요! 내일도 화이팅!",
+          duration: 5000,
+        });
+      }
+    }
+
     try {
       const response = await fetch(`/api/todos/${id}`, {
         method: "PATCH",
@@ -158,27 +175,30 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
 
       if (response.ok) {
         const updatedTodo = await response.json();
-        const newTodos = todos.map((t) => (t.id === id ? updatedTodo : t));
-        setTodos(newTodos);
-        onTodosChange?.(newTodos);
-
-        // 모든 할일이 완료되었는지 확인
-        if (completed && newTodos.length > 0) {
-          const allCompleted = newTodos.every(t => t.completed);
-          if (allCompleted) {
-            toast.success("🎉 오늘 할일을 모두 완료했습니다!", {
-              description: "정말 멋져요! 내일도 화이팅!",
-              duration: 5000,
-            });
-          }
-        }
+        const finalTodos = todos.map((t) => (t.id === id ? updatedTodo : t));
+        setTodos(finalTodos);
+        onTodosChange?.(finalTodos);
+      } else {
+        // 실패 시 롤백
+        setTodos(previousTodos);
+        onTodosChange?.(previousTodos);
+        toast.error("투두 업데이트에 실패했습니다.");
       }
     } catch {
+      // 실패 시 롤백
+      setTodos(previousTodos);
+      onTodosChange?.(previousTodos);
       toast.error("투두 업데이트에 실패했습니다.");
     }
   };
 
   const handleUpdate = async (id: string, content: string) => {
+    // 낙관적 UI 업데이트 - 즉시 내용 변경
+    const previousTodos = [...todos];
+    const newTodos = todos.map((t) => (t.id === id ? { ...t, content } : t));
+    setTodos(newTodos);
+    onTodosChange?.(newTodos);
+
     try {
       const response = await fetch(`/api/todos/${id}`, {
         method: "PATCH",
@@ -188,27 +208,45 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
 
       if (response.ok) {
         const updatedTodo = await response.json();
-        const newTodos = todos.map((t) => (t.id === id ? updatedTodo : t));
-        setTodos(newTodos);
-        onTodosChange?.(newTodos);
+        const finalTodos = todos.map((t) => (t.id === id ? updatedTodo : t));
+        setTodos(finalTodos);
+        onTodosChange?.(finalTodos);
+      } else {
+        // 실패 시 롤백
+        setTodos(previousTodos);
+        onTodosChange?.(previousTodos);
+        toast.error("투두 업데이트에 실패했습니다.");
       }
     } catch {
+      // 실패 시 롤백
+      setTodos(previousTodos);
+      onTodosChange?.(previousTodos);
       toast.error("투두 업데이트에 실패했습니다.");
     }
   };
 
   const handleDelete = async (id: string) => {
+    // 낙관적 UI 업데이트 - 즉시 삭제
+    const previousTodos = [...todos];
+    const newTodos = todos.filter((t) => t.id !== id);
+    setTodos(newTodos);
+    onTodosChange?.(newTodos);
+
     try {
       const response = await fetch(`/api/todos/${id}`, {
         method: "DELETE",
       });
 
-      if (response.ok) {
-        const newTodos = todos.filter((t) => t.id !== id);
-        setTodos(newTodos);
-        onTodosChange?.(newTodos);
+      if (!response.ok) {
+        // 실패 시 롤백
+        setTodos(previousTodos);
+        onTodosChange?.(previousTodos);
+        toast.error("투두 삭제에 실패했습니다.");
       }
     } catch {
+      // 실패 시 롤백
+      setTodos(previousTodos);
+      onTodosChange?.(previousTodos);
       toast.error("투두 삭제에 실패했습니다.");
     }
   };
