@@ -54,12 +54,12 @@ export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoL
     } finally {
       setIsLoading(false);
     }
-  }, [date, onTodosChange]);
+  }, [date]); // onTodosChange 제거 - 불필요한 재실행 방지
 
   useEffect(() => {
     fetchTodos();
     fetchTemplates();
-  }, [fetchTodos]);
+  }, [date]); // fetchTodos 대신 date만 의존 - 날짜 변경 시에만 fetch
 
   const fetchTemplates = async () => {
     try {

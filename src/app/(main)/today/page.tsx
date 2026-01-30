@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { TodoList } from "@/components/todo-list";
 import { StartDayButton } from "@/components/start-day-button";
@@ -50,6 +50,15 @@ export default function TodayPage() {
     day: "numeric",
     weekday: "long",
   });
+
+  // 콜백 메모이제이션 - 불필요한 리렌더링 방지
+  const handleTodosChange = useCallback((todos: Todo[]) => {
+    setTodos(todos);
+  }, []);
+
+  const handleCalendarRefreshNeeded = useCallback(() => {
+    setWeeklyRefreshTrigger(prev => prev + 1);
+  }, []);
 
   if (hasTeam === null) {
     return (
@@ -106,12 +115,8 @@ export default function TodayPage() {
         <CardContent>
           <TodoList 
             date={selectedDate} 
-            onTodosChange={(todos) => {
-              setTodos(todos);
-            }}
-            onCalendarRefreshNeeded={() => {
-              setWeeklyRefreshTrigger(prev => prev + 1);
-            }}
+            onTodosChange={handleTodosChange}
+            onCalendarRefreshNeeded={handleCalendarRefreshNeeded}
           />
         </CardContent>
       </Card>
@@ -119,7 +124,7 @@ export default function TodayPage() {
       {/* 모바일 플로팅 추가 버튼 */}
       <QuickAddFab 
         date={selectedDate} 
-        onTodoAdded={() => setWeeklyRefreshTrigger(prev => prev + 1)} 
+        onTodoAdded={handleCalendarRefreshNeeded} 
       />
     </div>
   );
