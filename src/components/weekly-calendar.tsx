@@ -125,7 +125,7 @@ export function WeeklyCalendar({ selectedDate, onDateSelect }: WeeklyCalendarPro
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 overflow-x-auto pb-2">
+      <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-7">
         {weekData.map((day) => {
           const { day: dayName, date: dayNumber } = formatDate(day.date);
           const today = isToday(day.date);
@@ -135,7 +135,7 @@ export function WeeklyCalendar({ selectedDate, onDateSelect }: WeeklyCalendarPro
             <Card
               key={day.date}
               className={`
-                cursor-pointer transition-all hover:shadow-md p-2.5 min-w-[95px]
+                cursor-pointer transition-all hover:shadow-md p-2.5 min-w-[100px] flex-shrink-0 md:min-w-0
                 ${selected ? "border-primary border-2 bg-primary/5" : ""}
                 ${today ? "ring-2 ring-primary/50" : ""}
               `}
