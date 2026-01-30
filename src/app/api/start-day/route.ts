@@ -89,7 +89,7 @@ export async function POST() {
     if (user.team.slackWebhookUrl) {
       const message = createStartDayMessage(
         user.name || user.email,
-        todos.map((t) => ({ content: t.content, completed: t.completed }))
+        todos.map((t: typeof todos[number]) => ({ content: t.content, completed: t.completed }))
       );
       
       await sendSlackMessage(user.team.slackWebhookUrl, message);
