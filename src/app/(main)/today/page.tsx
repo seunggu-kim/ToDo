@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { TodoList } from "@/components/todo-list";
 import { StartDayButton } from "@/components/start-day-button";
-import { WeeklyCalendar } from "@/components/weekly-calendar";
+import { WeeklyCalendar, WeeklyCalendarRef } from "@/components/weekly-calendar";
 import { QuickAddFab } from "@/components/quick-add-fab";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -24,6 +24,7 @@ export default function TodayPage() {
   const [hasTeam, setHasTeam] = useState<boolean | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [weeklyRefreshTrigger, setWeeklyRefreshTrigger] = useState(0);
+  const weeklyCalendarRef = useRef<WeeklyCalendarRef>(null);
 
   useEffect(() => {
     // 팀 확인
@@ -56,9 +57,10 @@ export default function TodayPage() {
     setTodos(todos);
   }, []);
 
-  const handleCalendarRefreshNeeded = useCallback(() => {
-    setWeeklyRefreshTrigger(prev => prev + 1);
-  }, []);
+  const handleCalendarUpdate = useCallback((delta: { total: number; completed: number }) => {
+    const dateStr = selectedDate.toISOString().split("T")[0];
+    weeklyCalendarRef.current?.updateDay(dateStr, delta);
+  }, [selectedDate]);
 
   if (hasTeam === null) {
     return (
@@ -87,6 +89,7 @@ export default function TodayPage() {
 
       {/* 주간 달력 */}
       <WeeklyCalendar 
+        ref={weeklyCalendarRef}
         selectedDate={selectedDate} 
         onDateSelect={setSelectedDate}
         refreshTrigger={weeklyRefreshTrigger}
@@ -116,7 +119,7 @@ export default function TodayPage() {
           <TodoList 
             date={selectedDate} 
             onTodosChange={handleTodosChange}
-            onCalendarRefreshNeeded={handleCalendarRefreshNeeded}
+            onCalendarUpdate={handleCalendarUpdate}
           />
         </CardContent>
       </Card>
@@ -124,7 +127,7 @@ export default function TodayPage() {
       {/* 모바일 플로팅 추가 버튼 */}
       <QuickAddFab 
         date={selectedDate} 
-        onTodoAdded={handleCalendarRefreshNeeded} 
+        onTodoAdded={() => handleCalendarUpdate({ total: 1, completed: 0 })} 
       />
     </div>
   );

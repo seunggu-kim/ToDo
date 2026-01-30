@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, forwardRef, useImperativeHandle } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -21,7 +21,12 @@ interface WeeklyCalendarProps {
   refreshTrigger?: number;
 }
 
-export function WeeklyCalendar({ selectedDate, onDateSelect, refreshTrigger }: WeeklyCalendarProps) {
+export interface WeeklyCalendarRef {
+  updateDay: (dateStr: string, delta: { total: number; completed: number }) => void;
+}
+
+export const WeeklyCalendar = forwardRef<WeeklyCalendarRef, WeeklyCalendarProps>(
+  function WeeklyCalendar({ selectedDate, onDateSelect, refreshTrigger }, ref) {
   const [weekData, setWeekData] = useState<WeekData[]>([]);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
   const [isLoading, setIsLoading] = useState(false);
@@ -29,6 +34,29 @@ export function WeeklyCalendar({ selectedDate, onDateSelect, refreshTrigger }: W
   useEffect(() => {
     fetchWeekData(currentWeekStart);
   }, [currentWeekStart, refreshTrigger]);
+
+  // 낙관적 업데이트 - 특정 날짜의 통계 즉시 업데이트
+  const updateDay = (dateStr: string, delta: { total: number; completed: number }) => {
+    setWeekData(prev => prev.map(day => {
+      if (day.date === dateStr) {
+        const newTotal = Math.max(0, day.totalCount + delta.total);
+        const newCompleted = Math.max(0, day.completedCount + delta.completed);
+        const newProgress = newTotal > 0 ? (newCompleted / newTotal) * 100 : 0;
+        return {
+          ...day,
+          totalCount: newTotal,
+          completedCount: newCompleted,
+          progress: newProgress,
+        };
+      }
+      return day;
+    }));
+  };
+
+  // 외부에서 호출할 수 있도록 메서드 노출
+  useImperativeHandle(ref, () => ({
+    updateDay,
+  }));
 
   const fetchWeekData = async (startDate: Date) => {
     setIsLoading(true);
@@ -174,7 +202,7 @@ export function WeeklyCalendar({ selectedDate, onDateSelect, refreshTrigger }: W
       </div>
     </div>
   );
-}
+});
 
 // 이번 주 월요일 날짜 구하기
 function getMonday(date: Date): Date {

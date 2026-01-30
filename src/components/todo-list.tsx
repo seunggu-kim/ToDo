@@ -27,10 +27,10 @@ interface TodoTemplate {
 interface TodoListProps {
   date: Date;
   onTodosChange?: (todos: Todo[]) => void;
-  onCalendarRefreshNeeded?: () => void;
+  onCalendarUpdate?: (delta: { total: number; completed: number }) => void;
 }
 
-export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoListProps) {
+export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -122,7 +122,8 @@ export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoL
         );
         setTodos(updatedTodos);
         onTodosChange?.(updatedTodos);
-        onCalendarRefreshNeeded?.();
+        // 주간 캘린더 낙관적 업데이트 - 할일 추가
+        onCalendarUpdate?.({ total: 1, completed: 0 });
       } else {
         // 실패시 임시 아이템 제거
         const revertedTodos = newTodos.filter(t => t.id !== tempTodo.id);
@@ -165,6 +166,9 @@ export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoL
     setTodos(newTodos);
     onTodosChange?.(newTodos);
 
+    // 주간 캘린더 낙관적 업데이트 - 완료 상태 변경
+    onCalendarUpdate?.({ total: 0, completed: completed ? 1 : -1 });
+
     // 모든 할일이 완료되었는지 확인
     if (completed && newTodos.length > 0) {
       const allCompleted = newTodos.every(t => t.completed);
@@ -187,15 +191,16 @@ export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoL
         // 실패 시 롤백
         setTodos(previousTodos);
         onTodosChange?.(previousTodos);
+        // 주간 캘린더도 롤백
+        onCalendarUpdate?.({ total: 0, completed: completed ? -1 : 1 });
         toast.error("투두 업데이트에 실패했습니다.");
-      } else {
-        // 성공 시 주간 달력만 업데이트
-        onCalendarRefreshNeeded?.();
       }
     } catch {
       // 실패 시 롤백
       setTodos(previousTodos);
       onTodosChange?.(previousTodos);
+      // 주간 캘린더도 롤백
+      onCalendarUpdate?.({ total: 0, completed: completed ? -1 : 1 });
       toast.error("투두 업데이트에 실패했습니다.");
     }
   };
@@ -232,9 +237,18 @@ export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoL
   const handleDelete = async (id: string) => {
     // 낙관적 UI 업데이트 - 즉시 삭제
     const previousTodos = [...todos];
+    const deletedTodo = todos.find(t => t.id === id);
     const newTodos = todos.filter((t) => t.id !== id);
     setTodos(newTodos);
     onTodosChange?.(newTodos);
+
+    // 주간 캘린더 낙관적 업데이트 - 할일 삭제
+    if (deletedTodo) {
+      onCalendarUpdate?.({ 
+        total: -1, 
+        completed: deletedTodo.completed ? -1 : 0 
+      });
+    }
 
     try {
       const response = await fetch(`/api/todos/${id}`, {
@@ -245,15 +259,26 @@ export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoL
         // 실패 시 롤백
         setTodos(previousTodos);
         onTodosChange?.(previousTodos);
+        // 주간 캘린더도 롤백
+        if (deletedTodo) {
+          onCalendarUpdate?.({ 
+            total: 1, 
+            completed: deletedTodo.completed ? 1 : 0 
+          });
+        }
         toast.error("투두 삭제에 실패했습니다.");
-      } else {
-        // 성공 시 주간 달력만 업데이트
-        onCalendarRefreshNeeded?.();
       }
     } catch {
       // 실패 시 롤백
       setTodos(previousTodos);
       onTodosChange?.(previousTodos);
+      // 주간 캘린더도 롤백
+      if (deletedTodo) {
+        onCalendarUpdate?.({ 
+          total: 1, 
+          completed: deletedTodo.completed ? 1 : 0 
+        });
+      }
       toast.error("투두 삭제에 실패했습니다.");
     }
   };
