@@ -44,6 +44,7 @@ export function MainNav({ user }: MainNavProps) {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={true}
                   className={cn(
                     "px-3 py-2 text-sm rounded-md transition-colors",
                     pathname === item.href
