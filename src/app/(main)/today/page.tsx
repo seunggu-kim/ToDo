@@ -78,9 +78,9 @@ export default function TodayPage() {
 
       {/* 주간 달력 */}
       <WeeklyCalendar 
-        key={refreshKey} 
         selectedDate={selectedDate} 
-        onDateSelect={setSelectedDate} 
+        onDateSelect={setSelectedDate}
+        refreshTrigger={refreshKey}
       />
 
       <Separator />

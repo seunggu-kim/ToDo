@@ -18,16 +18,17 @@ interface WeekData {
 interface WeeklyCalendarProps {
   selectedDate: Date;
   onDateSelect: (date: Date) => void;
+  refreshTrigger?: number;
 }
 
-export function WeeklyCalendar({ selectedDate, onDateSelect }: WeeklyCalendarProps) {
+export function WeeklyCalendar({ selectedDate, onDateSelect, refreshTrigger }: WeeklyCalendarProps) {
   const [weekData, setWeekData] = useState<WeekData[]>([]);
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(getMonday(new Date()));
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     fetchWeekData(currentWeekStart);
-  }, [currentWeekStart]);
+  }, [currentWeekStart, refreshTrigger]);
 
   const fetchWeekData = async (startDate: Date) => {
     setIsLoading(true);
