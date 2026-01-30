@@ -27,9 +27,10 @@ interface TodoTemplate {
 interface TodoListProps {
   date: Date;
   onTodosChange?: (todos: Todo[]) => void;
+  onCalendarRefreshNeeded?: () => void;
 }
 
-export function TodoList({ date, onTodosChange }: TodoListProps) {
+export function TodoList({ date, onTodosChange, onCalendarRefreshNeeded }: TodoListProps) {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodo, setNewTodo] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -121,6 +122,7 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
         );
         setTodos(updatedTodos);
         onTodosChange?.(updatedTodos);
+        onCalendarRefreshNeeded?.();
       } else {
         // 실패시 임시 아이템 제거
         const revertedTodos = newTodos.filter(t => t.id !== tempTodo.id);
@@ -186,8 +188,10 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
         setTodos(previousTodos);
         onTodosChange?.(previousTodos);
         toast.error("투두 업데이트에 실패했습니다.");
+      } else {
+        // 성공 시 주간 달력만 업데이트
+        onCalendarRefreshNeeded?.();
       }
-      // 성공 시에는 이미 낙관적으로 업데이트했으므로 아무것도 안 함
     } catch {
       // 실패 시 롤백
       setTodos(previousTodos);
@@ -242,6 +246,9 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
         setTodos(previousTodos);
         onTodosChange?.(previousTodos);
         toast.error("투두 삭제에 실패했습니다.");
+      } else {
+        // 성공 시 주간 달력만 업데이트
+        onCalendarRefreshNeeded?.();
       }
     } catch {
       // 실패 시 롤백

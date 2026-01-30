@@ -23,7 +23,7 @@ export default function TodayPage() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [hasTeam, setHasTeam] = useState<boolean | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [weeklyRefreshTrigger, setWeeklyRefreshTrigger] = useState(0);
 
   useEffect(() => {
     // 팀 확인
@@ -80,7 +80,7 @@ export default function TodayPage() {
       <WeeklyCalendar 
         selectedDate={selectedDate} 
         onDateSelect={setSelectedDate}
-        refreshTrigger={refreshKey}
+        refreshTrigger={weeklyRefreshTrigger}
       />
 
       <Separator />
@@ -108,8 +108,10 @@ export default function TodayPage() {
             date={selectedDate} 
             onTodosChange={(todos) => {
               setTodos(todos);
-              setRefreshKey(prev => prev + 1);
-            }} 
+            }}
+            onCalendarRefreshNeeded={() => {
+              setWeeklyRefreshTrigger(prev => prev + 1);
+            }}
           />
         </CardContent>
       </Card>
@@ -117,7 +119,7 @@ export default function TodayPage() {
       {/* 모바일 플로팅 추가 버튼 */}
       <QuickAddFab 
         date={selectedDate} 
-        onTodoAdded={() => setRefreshKey(prev => prev + 1)} 
+        onTodoAdded={() => setWeeklyRefreshTrigger(prev => prev + 1)} 
       />
     </div>
   );
