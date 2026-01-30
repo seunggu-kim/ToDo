@@ -72,7 +72,9 @@ export default function MonthlyStatsPage() {
       if (showRefreshToast) setIsRefreshing(true);
       
       const response = await fetch("/api/stats/monthly", {
-        cache: showRefreshToast ? "no-store" : "default",
+        next: showRefreshToast 
+          ? { revalidate: 0 } // 새로고침 시 캐시 무시
+          : { revalidate: 300 }, // 5분 캐싱
       });
       const result = await response.json();
 

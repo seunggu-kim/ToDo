@@ -62,7 +62,9 @@ export default function WeeklyStatsPage() {
       if (showRefreshToast) setIsRefreshing(true);
       
       const response = await fetch("/api/stats/weekly", {
-        cache: showRefreshToast ? "no-store" : "default",
+        next: showRefreshToast 
+          ? { revalidate: 0 } // 새로고침 시 캐시 무시
+          : { revalidate: 300 }, // 5분 캐싱
       });
       const result = await response.json();
 
