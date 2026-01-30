@@ -173,17 +173,13 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
         body: JSON.stringify({ completed }),
       });
 
-      if (response.ok) {
-        const updatedTodo = await response.json();
-        const finalTodos = todos.map((t) => (t.id === id ? updatedTodo : t));
-        setTodos(finalTodos);
-        onTodosChange?.(finalTodos);
-      } else {
+      if (!response.ok) {
         // 실패 시 롤백
         setTodos(previousTodos);
         onTodosChange?.(previousTodos);
         toast.error("투두 업데이트에 실패했습니다.");
       }
+      // 성공 시에는 이미 낙관적으로 업데이트했으므로 아무것도 안 함
     } catch {
       // 실패 시 롤백
       setTodos(previousTodos);
@@ -206,17 +202,13 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
         body: JSON.stringify({ content }),
       });
 
-      if (response.ok) {
-        const updatedTodo = await response.json();
-        const finalTodos = todos.map((t) => (t.id === id ? updatedTodo : t));
-        setTodos(finalTodos);
-        onTodosChange?.(finalTodos);
-      } else {
+      if (!response.ok) {
         // 실패 시 롤백
         setTodos(previousTodos);
         onTodosChange?.(previousTodos);
         toast.error("투두 업데이트에 실패했습니다.");
       }
+      // 성공 시에는 이미 낙관적으로 업데이트했으므로 아무것도 안 함
     } catch {
       // 실패 시 롤백
       setTodos(previousTodos);
