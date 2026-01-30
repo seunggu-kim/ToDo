@@ -125,7 +125,7 @@ export function WeeklyCalendar({ selectedDate, onDateSelect }: WeeklyCalendarPro
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 overflow-x-auto">
+      <div className="grid grid-cols-7 gap-2 overflow-x-auto pb-2">
         {weekData.map((day) => {
           const { day: dayName, date: dayNumber } = formatDate(day.date);
           const today = isToday(day.date);
@@ -135,34 +135,34 @@ export function WeeklyCalendar({ selectedDate, onDateSelect }: WeeklyCalendarPro
             <Card
               key={day.date}
               className={`
-                cursor-pointer transition-all hover:shadow-md p-3 min-w-[90px]
+                cursor-pointer transition-all hover:shadow-md p-2.5 min-w-[95px]
                 ${selected ? "border-primary border-2 bg-primary/5" : ""}
                 ${today ? "ring-2 ring-primary/50" : ""}
               `}
               onClick={() => onDateSelect(new Date(day.date))}
             >
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                   <div className="text-xs font-medium text-muted-foreground">
                     {dayName}
                   </div>
                   {today && (
-                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
                   )}
                 </div>
-                <div className="text-2xl font-bold">{dayNumber}</div>
+                <div className="text-xl font-bold leading-none">{dayNumber}</div>
                 {day.totalCount > 0 ? (
                   <>
-                    <Badge variant="secondary" className="text-xs w-full justify-center">
+                    <Badge variant="secondary" className="text-xs w-full justify-center py-0.5">
                       {day.totalCount}개
                     </Badge>
                     <Progress value={day.progress} className="h-1" />
-                    <div className="text-xs text-center text-muted-foreground">
+                    <div className="text-[10px] text-center text-muted-foreground leading-none">
                       {day.completedCount}/{day.totalCount}
                     </div>
                   </>
                 ) : (
-                  <div className="text-xs text-center text-muted-foreground py-2">
+                  <div className="text-[10px] text-center text-muted-foreground py-1.5 leading-none">
                     할일 없음
                   </div>
                 )}
