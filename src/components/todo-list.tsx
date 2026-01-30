@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { FileText, ChevronDown } from "lucide-react";
+import { FileText, ChevronDown, Plus, X } from "lucide-react";
 
 interface Todo {
   id: string;
@@ -36,8 +37,11 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
   const [isLoading, setIsLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [templates, setTemplates] = useState<TodoTemplate[]>([]);
-  const [showTemplates, setShowTemplates] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(true); // 기본값 true로 변경
+  const [isAddingTemplate, setIsAddingTemplate] = useState(false);
+  const [newTemplate, setNewTemplate] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const templateInputRef = useRef<HTMLInputElement>(null);
 
   const fetchTodos = useCallback(async () => {
     try {
@@ -75,8 +79,48 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
 
   const handleSelectTemplate = (content: string) => {
     setNewTodo(content);
-    setShowTemplates(false);
     textareaRef.current?.focus();
+  };
+
+  const handleAddTemplate = async () => {
+    if (!newTemplate.trim()) return;
+
+    try {
+      const response = await fetch("/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newTemplate.trim() }),
+      });
+
+      if (response.ok) {
+        const template = await response.json();
+        setTemplates([...templates, template]);
+        setNewTemplate("");
+        setIsAddingTemplate(false);
+        toast.success("템플릿이 추가되었습니다.");
+      } else {
+        toast.error("템플릿 추가에 실패했습니다.");
+      }
+    } catch {
+      toast.error("템플릿 추가에 실패했습니다.");
+    }
+  };
+
+  const handleDeleteTemplate = async (id: string) => {
+    try {
+      const response = await fetch(`/api/templates/${id}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setTemplates(templates.filter(t => t.id !== id));
+        toast.success("템플릿이 삭제되었습니다.");
+      } else {
+        toast.error("템플릿 삭제에 실패했습니다.");
+      }
+    } catch {
+      toast.error("템플릿 삭제에 실패했습니다.");
+    }
   };
 
   const handleAdd = async (e?: React.FormEvent) => {
@@ -309,7 +353,7 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
 
       <div className="space-y-2">
         <form onSubmit={handleAdd} className="flex gap-2">
-          <div className="flex-1 space-y-2">
+          <div className="flex-1">
             <Textarea
               ref={textareaRef}
               value={newTodo}
@@ -319,42 +363,122 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
               className="min-h-[60px] max-h-[120px] resize-none"
               rows={2}
             />
-            {templates.length > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTemplates(!showTemplates)}
-                className="w-full"
-              >
-                <FileText className="h-4 w-4 mr-2" />
-                템플릿에서 선택
-                <ChevronDown className={`h-4 w-4 ml-2 transition-transform ${showTemplates ? "rotate-180" : ""}`} />
-              </Button>
-            )}
           </div>
           <Button type="submit" disabled={!newTodo.trim() || isAdding}>
             {isAdding ? "추가 중..." : "추가"}
           </Button>
         </form>
 
-        {showTemplates && templates.length > 0 && (
-          <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
-            <p className="text-sm font-medium text-muted-foreground mb-2">템플릿 선택</p>
-            <div className="space-y-1">
-              {templates.map((template) => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => handleSelectTemplate(template.content)}
-                  className="w-full text-left p-2 rounded hover:bg-muted transition-colors text-sm"
-                >
-                  {template.content}
-                </button>
-              ))}
+        {/* 템플릿 섹션 - 항상 표시 */}
+        <div className="border rounded-lg p-3 space-y-2 bg-muted/30">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <FileText className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium text-muted-foreground">템플릿</p>
             </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6"
+              onClick={() => setShowTemplates(!showTemplates)}
+            >
+              <ChevronDown className={`h-4 w-4 transition-transform ${showTemplates ? "rotate-180" : ""}`} />
+            </Button>
           </div>
-        )}
+
+          {showTemplates && (
+            <div className="space-y-1.5 pt-1">
+              {templates.length > 0 ? (
+                templates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="flex items-center gap-2 group"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleSelectTemplate(template.content)}
+                      className="flex-1 text-left p-2 rounded hover:bg-muted transition-colors text-sm"
+                    >
+                      {template.content}
+                    </button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+                      onClick={() => handleDeleteTemplate(template.id)}
+                    >
+                      <X className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+                    </Button>
+                  </div>
+                ))
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-2">
+                  아직 템플릿이 없습니다
+                </p>
+              )}
+
+              {/* 템플릿 추가 UI */}
+              {isAddingTemplate ? (
+                <div className="flex gap-1 pt-1">
+                  <Input
+                    ref={templateInputRef}
+                    value={newTemplate}
+                    onChange={(e) => setNewTemplate(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddTemplate();
+                      } else if (e.key === "Escape") {
+                        setIsAddingTemplate(false);
+                        setNewTemplate("");
+                      }
+                    }}
+                    placeholder="템플릿 내용..."
+                    className="h-8 text-sm"
+                    autoFocus
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={handleAddTemplate}
+                    disabled={!newTemplate.trim()}
+                    className="h-8"
+                  >
+                    추가
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddingTemplate(false);
+                      setNewTemplate("");
+                    }}
+                    className="h-8"
+                  >
+                    취소
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setIsAddingTemplate(true);
+                    setTimeout(() => templateInputRef.current?.focus(), 0);
+                  }}
+                  className="w-full h-8 mt-1"
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  템플릿 추가
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="space-y-2">
