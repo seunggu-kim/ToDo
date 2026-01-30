@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,15 +26,15 @@ interface TodoItemProps {
 export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(todo.content);
-  const [prevCompleted, setPrevCompleted] = useState(todo.completed);
+  const prevCompletedRef = useRef(todo.completed);
 
   useEffect(() => {
     // 완료 상태로 변경되었을 때 애니메이션
-    if (!prevCompleted && todo.completed) {
+    if (!prevCompletedRef.current && todo.completed) {
       triggerConfetti(todo.carryOverCount);
     }
-    setPrevCompleted(todo.completed);
-  }, [todo.completed]);
+    prevCompletedRef.current = todo.completed;
+  }, [todo.completed, todo.carryOverCount]);
 
   const triggerConfetti = (carryOverCount: number) => {
     const count = carryOverCount >= 3 ? 100 : 50; // 많이 미룬 할일은 더 화려하게

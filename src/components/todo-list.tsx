@@ -15,6 +15,7 @@ interface Todo {
   completed: boolean;
   carryOverCount: number;
   date: string;
+  priority?: number;
 }
 
 interface TodoTemplate {
@@ -151,7 +152,14 @@ export function TodoList({ date, onTodosChange }: TodoListProps) {
   const handleToggle = async (id: string, completed: boolean) => {
     // 낙관적 UI 업데이트 - 즉시 체크박스 상태 변경
     const previousTodos = [...todos];
-    const newTodos = todos.map((t) => (t.id === id ? { ...t, completed } : t));
+    const newTodos = todos
+      .map((t) => (t.id === id ? { ...t, completed } : t))
+      .sort((a, b) => {
+        // API와 동일한 정렬: 미완료 먼저, 완료 나중
+        if (a.completed !== b.completed) return a.completed ? 1 : -1;
+        if (a.priority !== b.priority) return (b.priority || 0) - (a.priority || 0);
+        return 0;
+      });
     setTodos(newTodos);
     onTodosChange?.(newTodos);
 
