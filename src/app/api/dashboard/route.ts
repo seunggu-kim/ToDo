@@ -56,7 +56,7 @@ export async function GET() {
     const dashboardData = teamMembers.map((member: typeof teamMembers[number]) => {
       const todos = member.todos;
       const totalCount = todos.length;
-      const completedCount = todos.filter((t) => t.completed).length;
+      const completedCount = todos.filter((t: typeof todos[number]) => t.completed).length;
       const dayStart = member.dayStarts[0];
 
       return {
