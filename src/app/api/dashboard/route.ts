@@ -53,7 +53,7 @@ export async function GET() {
       },
     });
 
-    const dashboardData = teamMembers.map((member) => {
+    const dashboardData = teamMembers.map((member: typeof teamMembers[number]) => {
       const todos = member.todos;
       const totalCount = todos.length;
       const completedCount = todos.filter((t) => t.completed).length;
