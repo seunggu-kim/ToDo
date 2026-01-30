@@ -77,7 +77,11 @@ export default function TodayPage() {
       </div>
 
       {/* 주간 달력 */}
-      <WeeklyCalendar selectedDate={selectedDate} onDateSelect={setSelectedDate} />
+      <WeeklyCalendar 
+        key={refreshKey} 
+        selectedDate={selectedDate} 
+        onDateSelect={setSelectedDate} 
+      />
 
       <Separator />
 
@@ -100,7 +104,13 @@ export default function TodayPage() {
           <CardTitle className="text-lg">할 일 목록</CardTitle>
         </CardHeader>
         <CardContent>
-          <TodoList key={refreshKey} date={selectedDate} onTodosChange={setTodos} />
+          <TodoList 
+            date={selectedDate} 
+            onTodosChange={(todos) => {
+              setTodos(todos);
+              setRefreshKey(prev => prev + 1);
+            }} 
+          />
         </CardContent>
       </Card>
 
