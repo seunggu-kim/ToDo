@@ -12,6 +12,7 @@ interface Todo {
   content: string;
   completed: boolean;
   carryOverCount: number;
+  priority?: number;
 }
 
 interface TodoItemProps {
@@ -41,13 +42,23 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) 
     }
   };
 
+  const getPriorityColor = () => {
+    switch (todo.priority) {
+      case 3: return "bg-red-500";
+      case 2: return "bg-yellow-500";
+      case 1: return "bg-blue-500";
+      default: return "bg-gray-300";
+    }
+  };
+
   return (
     <div
       className={cn(
-        "flex items-center gap-3 p-3 rounded-lg border bg-card transition-colors",
+        "flex items-center gap-3 p-3 rounded-lg border bg-card transition-colors relative overflow-hidden",
         todo.completed && "bg-muted/50"
       )}
     >
+      <div className={cn("absolute left-0 top-0 bottom-0 w-1", getPriorityColor())} />
       <Checkbox
         checked={todo.completed}
         onCheckedChange={(checked) => onToggle(todo.id, checked as boolean)}

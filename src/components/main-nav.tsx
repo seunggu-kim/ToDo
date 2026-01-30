@@ -17,6 +17,9 @@ interface MainNavProps {
 const navItems = [
   { href: "/today", label: "오늘 할일" },
   { href: "/dashboard", label: "팀 현황" },
+  { href: "/history", label: "히스토리" },
+  { href: "/stats/weekly", label: "주간 통계" },
+  { href: "/stats/monthly", label: "월간 통계" },
   { href: "/settings", label: "설정" },
 ];
 

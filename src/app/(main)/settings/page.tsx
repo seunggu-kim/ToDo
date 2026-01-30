@@ -83,6 +83,32 @@ export default function SettingsPage() {
     }
   };
 
+  const handleLeaveTeam = async () => {
+    if (!confirm("정말 팀에서 탈퇴하시겠습니까? 모든 투두 데이터가 삭제됩니다.")) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/team/leave", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.error);
+      } else {
+        toast.success("팀에서 탈퇴했습니다.");
+        router.push("/team");
+      }
+    } catch {
+      toast.error("탈퇴 처리 중 오류가 발생했습니다.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   if (!team) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -198,6 +224,24 @@ export default function SettingsPage() {
             <li>알림을 받을 채널 선택</li>
             <li>생성된 웹훅 URL을 위 입력란에 붙여넣기</li>
           </ol>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">위험 구역</CardTitle>
+          <CardDescription>
+            팀 탈퇴 시 모든 투두 데이터가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button 
+            variant="destructive" 
+            onClick={handleLeaveTeam}
+            disabled={isLoading}
+          >
+            팀 탈퇴하기
+          </Button>
         </CardContent>
       </Card>
     </div>

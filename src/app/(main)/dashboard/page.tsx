@@ -25,6 +25,7 @@ interface MemberData {
   progress: number;
   started: boolean;
   startedAt: string | null;
+  streak: number;
 }
 
 export default function DashboardPage() {
@@ -146,9 +147,16 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">{member.name || member.email}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {formatTime(member.startedAt)}에 시작
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm text-muted-foreground">
+                              {formatTime(member.startedAt)}에 시작
+                            </p>
+                            {member.streak > 0 && (
+                              <Badge variant="outline" className="text-xs">
+                                🔥 {member.streak}일 연속
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <Badge variant="secondary">
                           {member.completedCount}/{member.totalCount} 완료
