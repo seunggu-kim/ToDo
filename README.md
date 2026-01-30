@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 팀 투두리스트
 
-## Getting Started
+재택 팀원들이 오늘 할일을 공유하고 업무 시작을 선언하는 협업 투두리스트 앱
 
-First, run the development server:
+## 주요 기능
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+- 🔐 회원가입 및 로그인
+- 👥 팀 생성 및 초대 코드로 참여
+- ✅ 오늘 할일 관리
+- 🚀 "오늘 시작" 버튼으로 슬랙 알림
+- 📊 팀 대시보드로 팀원 현황 확인
+- 🔄 매일 오전 9시 미완료 항목 자동 이월
+
+## 기술 스택
+
+- Next.js 14
+- TypeScript
+- Tailwind CSS + shadcn/ui
+- Prisma + PostgreSQL (Supabase)
+- NextAuth.js
+- Slack Webhook
+
+## 환경 변수
+
+```env
+DATABASE_URL="your-supabase-connection-string"
+NEXTAUTH_URL="your-app-url"
+NEXTAUTH_SECRET="your-secret-key"
+CRON_SECRET="your-cron-secret"
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 배포
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Supabase에서 데이터베이스 생성
+2. `supabase-schema.sql` 실행
+3. Vercel에 배포
+4. 환경 변수 설정

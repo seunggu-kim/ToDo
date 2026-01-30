@@ -1,0 +1,93 @@
+"use client";
+
+import { useState } from "react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
+
+interface Todo {
+  id: string;
+  content: string;
+  completed: boolean;
+  carryOverCount: number;
+}
+
+interface TodoItemProps {
+  todo: Todo;
+  onToggle: (id: string, completed: boolean) => void;
+  onUpdate: (id: string, content: string) => void;
+  onDelete: (id: string) => void;
+}
+
+export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(todo.content);
+
+  const handleSave = () => {
+    if (editContent.trim()) {
+      onUpdate(todo.id, editContent.trim());
+      setIsEditing(false);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      handleSave();
+    } else if (e.key === "Escape") {
+      setEditContent(todo.content);
+      setIsEditing(false);
+    }
+  };
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-3 p-3 rounded-lg border bg-card transition-colors",
+        todo.completed && "bg-muted/50"
+      )}
+    >
+      <Checkbox
+        checked={todo.completed}
+        onCheckedChange={(checked) => onToggle(todo.id, checked as boolean)}
+      />
+      
+      {isEditing ? (
+        <Input
+          value={editContent}
+          onChange={(e) => setEditContent(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={handleKeyDown}
+          className="flex-1"
+          autoFocus
+        />
+      ) : (
+        <div
+          className={cn(
+            "flex-1 cursor-pointer",
+            todo.completed && "line-through text-muted-foreground"
+          )}
+          onClick={() => !todo.completed && setIsEditing(true)}
+        >
+          {todo.content}
+        </div>
+      )}
+
+      {todo.carryOverCount > 0 && (
+        <Badge variant="outline" className="text-xs">
+          {todo.carryOverCount}회 이월
+        </Badge>
+      )}
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onDelete(todo.id)}
+        className="text-muted-foreground hover:text-destructive"
+      >
+        삭제
+      </Button>
+    </div>
+  );
+}
