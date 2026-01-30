@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
+// 5분 캐싱 적용 (통계 데이터는 자주 변하지 않음)
+export const revalidate = 300;
+
 // 주간 통계 조회 (최근 7일)
 export async function GET() {
   try {

@@ -2,7 +2,9 @@
 
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { RefreshCw } from "lucide-react";
 
 const LineChart = lazy(() => import("recharts").then(mod => ({ default: mod.LineChart })));
 const Line = lazy(() => import("recharts").then(mod => ({ default: mod.Line })));
@@ -49,26 +51,39 @@ interface WeeklyData {
 export default function WeeklyStatsPage() {
   const [data, setData] = useState<WeeklyData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     fetchWeeklyStats();
   }, []);
 
-  const fetchWeeklyStats = async () => {
+  const fetchWeeklyStats = async (showRefreshToast = false) => {
     try {
-      const response = await fetch("/api/stats/weekly");
+      if (showRefreshToast) setIsRefreshing(true);
+      
+      const response = await fetch("/api/stats/weekly", {
+        cache: showRefreshToast ? "no-store" : "default",
+      });
       const result = await response.json();
 
       if (!response.ok) {
         toast.error(result.error);
       } else {
         setData(result);
+        if (showRefreshToast) {
+          toast.success("통계가 업데이트되었습니다.");
+        }
       }
     } catch {
       toast.error("주간 통계 조회 중 오류가 발생했습니다.");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  const handleRefresh = () => {
+    fetchWeeklyStats(true);
   };
 
   if (isLoading) {
@@ -89,11 +104,22 @@ export default function WeeklyStatsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">주간 통계</h1>
-        <p className="text-muted-foreground">
-          최근 7일간의 팀 생산성을 확인하세요.
-        </p>
+      <div className="flex items-start justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">주간 통계</h1>
+          <p className="text-muted-foreground">
+            최근 7일간의 팀 생산성을 확인하세요.
+          </p>
+        </div>
+        <Button
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          variant="outline"
+          size="sm"
+        >
+          <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`} />
+          {isRefreshing ? "업데이트 중..." : "새로고침"}
+        </Button>
       </div>
 
       {/* MVP 카드 */}
