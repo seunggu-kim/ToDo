@@ -98,11 +98,14 @@ export async function GET() {
       }
     });
 
-    const userArray = Object.values(userStats).map((stat) => ({
-      ...stat,
-      completionRate: stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0,
-      score: stat.total > 0 ? (stat.completionRate * 0.7) + (stat.completed * 0.3) : 0,
-    }));
+    const userArray = Object.values(userStats).map((stat) => {
+      const completionRate = stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0;
+      return {
+        ...stat,
+        completionRate,
+        score: stat.total > 0 ? (completionRate * 0.7) + (stat.completed * 0.3) : 0,
+      };
+    });
 
     // MVP 계산 (완료율 70% + 완료 개수 30% 가중치)
     let mvp = null;
