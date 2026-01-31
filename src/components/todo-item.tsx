@@ -21,9 +21,10 @@ interface TodoItemProps {
   onToggle: (id: string, completed: boolean) => void;
   onUpdate: (id: string, content: string) => void;
   onDelete: (id: string) => void;
+  isBacklog?: boolean;
 }
 
-export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) {
+export function TodoItem({ todo, onToggle, onUpdate, onDelete, isBacklog }: TodoItemProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(todo.content);
   const prevCompletedRef = useRef(todo.completed);
@@ -44,7 +45,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) 
       particleCount: count,
       spread: spread,
       origin: { y: 0.6 },
-      colors: carryOverCount >= 3 
+      colors: carryOverCount >= 3
         ? ['#ff0000', '#ff6600', '#ffaa00'] // 빨강/주황 계열
         : ['#10b981', '#3b82f6', '#8b5cf6'], // 초록/파랑/보라 계열
     });
@@ -86,8 +87,10 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) 
       <Checkbox
         checked={todo.completed}
         onCheckedChange={(checked) => onToggle(todo.id, checked as boolean)}
+        disabled={isBacklog}
+        className={cn(isBacklog && "opacity-50 cursor-not-allowed")}
       />
-      
+
       {isEditing ? (
         <Input
           value={editContent}
@@ -110,8 +113,8 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete }: TodoItemProps) 
       )}
 
       {todo.carryOverCount > 0 && (
-        <Badge 
-          variant={todo.carryOverCount >= 3 ? "destructive" : "outline"} 
+        <Badge
+          variant={todo.carryOverCount >= 3 ? "destructive" : "outline"}
           className="text-xs"
         >
           {todo.carryOverCount >= 3 && "🔥 "}

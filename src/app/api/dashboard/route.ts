@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
@@ -88,7 +88,8 @@ export async function GET() {
       // 날짜별로 그룹화
       const dailyCompletion: Record<string, { total: number; completed: number }> = {};
       pastTodos.forEach((todo: typeof pastTodos[number]) => {
-        const dateKey = todo.date.toISOString().split("T")[0];
+        const dateKey = todo.date?.toISOString().split("T")[0];
+        if (!dateKey) return; // 백로그(날짜 없음)는 스킵
         if (!dailyCompletion[dateKey]) {
           dailyCompletion[dateKey] = { total: 0, completed: 0 };
         }

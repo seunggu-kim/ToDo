@@ -9,7 +9,7 @@ export async function PATCH(
 ) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
@@ -35,6 +35,7 @@ export async function PATCH(
       completed?: boolean;
       completedAt?: Date | null;
       priority?: number;
+      date?: Date | null;
     } = {};
 
     if (body.content !== undefined) {
@@ -48,6 +49,19 @@ export async function PATCH(
 
     if (body.priority !== undefined) {
       updateData.priority = body.priority;
+    }
+
+    // 날짜 업데이트 (드래그 앤 드롭용)
+    if (body.date !== undefined) {
+      if (body.date === null) {
+        // 백로그로 이동
+        updateData.date = null;
+      } else {
+        // 특정 날짜로 이동
+        const newDate = new Date(body.date);
+        newDate.setHours(0, 0, 0, 0);
+        updateData.date = newDate;
+      }
     }
 
     const todo = await prisma.todo.update({
@@ -69,7 +83,7 @@ export async function DELETE(
 ) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }

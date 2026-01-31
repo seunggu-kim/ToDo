@@ -1,12 +1,32 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+
+// 개발 환경 체크
+const isDev = process.env.NODE_ENV === "development";
+
+// 개발용 목업 팀 데이터
+const mockTeam = {
+  id: "dev-team-id",
+  name: "개발팀",
+  inviteCode: "DEV123",
+  members: [
+    { id: "dev-user-id", name: "개발자", email: "dev@example.com", image: null },
+  ],
+};
 
 // 팀 생성
 export async function POST(request: Request) {
   try {
+    // 개발 환경: 목업 응답
+    if (isDev) {
+      const { name } = await request.json();
+      return NextResponse.json({ ...mockTeam, name }, { status: 201 });
+    }
+
+    // 프로덕션: 실제 DB 사용
+    const { prisma } = await import("@/lib/prisma");
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
@@ -47,8 +67,15 @@ export async function POST(request: Request) {
 // 현재 팀 정보 조회
 export async function GET() {
   try {
+    // 개발 환경: 목업 팀 데이터 반환
+    if (isDev) {
+      return NextResponse.json({ team: mockTeam });
+    }
+
+    // 프로덕션: 실제 DB 사용
+    const { prisma } = await import("@/lib/prisma");
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }

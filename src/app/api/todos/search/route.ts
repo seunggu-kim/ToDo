@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 export async function GET(request: Request) {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
@@ -49,10 +49,10 @@ export async function GET(request: Request) {
       take: 50, // 최대 50개
     });
 
-    // 날짜별로 그룹화
+    // 날짜별로 그룹화 (백로그 제외 - 검색 결과에서는 날짜 있는 것만)
     const groupedByDate: Record<string, typeof todos> = {};
     todos.forEach(todo => {
-      const dateKey = todo.date.toISOString().split("T")[0];
+      const dateKey = todo.date?.toISOString().split("T")[0] ?? "backlog";
       if (!groupedByDate[dateKey]) {
         groupedByDate[dateKey] = [];
       }

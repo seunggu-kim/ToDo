@@ -80,7 +80,7 @@ model Team {
 model Todo {
   id             String   @id @default(cuid())
   content        String
-  date           DateTime @db.Date
+  date           DateTime? @db.Date
   completed      Boolean  @default(false)
   completedAt    DateTime?
   carryOverCount Int      @default(0)

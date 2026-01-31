@@ -78,6 +78,45 @@ export default function LoginPage() {
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading ? "로그인 중..." : "로그인"}
           </Button>
+
+          {process.env.NODE_ENV === "development" && (
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-dashed border-primary/50 text-primary"
+              onClick={async () => {
+                setIsLoading(true);
+                try {
+                  // 1. 먼저 개발용 계정/팀 생성 시도
+                  const regRes = await fetch("/api/auth/register", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      name: "개발자",
+                      email: "dev@example.com",
+                      password: "password123",
+                    }),
+                  });
+                  // 이미 있어도 무시 (400)
+
+                  // 2. 로그인 시도
+                  await signIn("credentials", {
+                    email: "dev@example.com",
+                    password: "password123",
+                    callbackUrl: "/today",
+                  });
+                } catch {
+                  toast.error("데모 로그인 중 오류가 발생했습니다.");
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              disabled={isLoading}
+            >
+              🚀 개발용 퀵 로그인 (가입 없이 바로 확인)
+            </Button>
+          )}
+
           <p className="text-sm text-muted-foreground text-center">
             계정이 없으신가요?{" "}
             <Link href="/register" className="text-primary hover:underline">

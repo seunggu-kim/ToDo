@@ -9,7 +9,7 @@ export const revalidate = 300;
 export async function GET() {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
@@ -26,7 +26,7 @@ export async function GET() {
     // 최근 7일 날짜 계산
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const sevenDaysAgo = new Date(today);
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
@@ -56,7 +56,7 @@ export async function GET() {
 
     // 날짜별 집계
     const dailyStats: Record<string, { total: number; completed: number; date: string }> = {};
-    
+
     for (let i = 0; i < 7; i++) {
       const date = new Date(sevenDaysAgo);
       date.setDate(date.getDate() + i);
@@ -69,8 +69,8 @@ export async function GET() {
     }
 
     todos.forEach((todo: typeof todos[number]) => {
-      const dateKey = todo.date.toISOString().split("T")[0];
-      if (dailyStats[dateKey]) {
+      const dateKey = todo.date?.toISOString().split("T")[0];
+      if (dateKey && dailyStats[dateKey]) {
         dailyStats[dateKey].total++;
         if (todo.completed) {
           dailyStats[dateKey].completed++;
@@ -85,7 +85,7 @@ export async function GET() {
 
     // 팀원별 통계
     const userStats: Record<string, { name: string; email: string; total: number; completed: number }> = {};
-    
+
     todos.forEach((todo: typeof todos[number]) => {
       if (!userStats[todo.userId]) {
         userStats[todo.userId] = {

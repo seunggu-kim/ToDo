@@ -9,7 +9,7 @@ export const revalidate = 300;
 export async function GET() {
   try {
     const session = await auth();
-    
+
     if (!session?.user?.id) {
       return NextResponse.json({ error: "인증이 필요합니다." }, { status: 401 });
     }
@@ -26,7 +26,7 @@ export async function GET() {
     // 최근 30일 날짜 계산
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const thirtyDaysAgo = new Date(today);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
 
@@ -68,6 +68,7 @@ export async function GET() {
     const dayNames = ["일요일", "월요일", "화요일", "수요일", "목요일", "금요일", "토요일"];
 
     todos.forEach((todo: typeof todos[number]) => {
+      if (!todo.date) return; // 백로그는 스킵
       const dayOfWeek = todo.date.getDay();
       dayOfWeekStats[dayOfWeek].total++;
       if (todo.completed) {
@@ -84,15 +85,16 @@ export async function GET() {
 
     // 주차별 집계 (4주)
     const weeklyStats: Array<{ week: string; total: number; completed: number }> = [];
-    
+
     for (let i = 0; i < 4; i++) {
       const weekEnd = new Date(today);
       weekEnd.setDate(weekEnd.getDate() - (i * 7));
-      
+
       const weekStart = new Date(weekEnd);
       weekStart.setDate(weekStart.getDate() - 6);
 
       const weekTodos = todos.filter((todo: typeof todos[number]) => {
+        if (!todo.date) return false; // 백로그는 스킵
         const todoDate = new Date(todo.date);
         return todoDate >= weekStart && todoDate <= weekEnd;
       });
@@ -111,7 +113,7 @@ export async function GET() {
 
     // 팀원별 통계
     const userStats: Record<string, { name: string; email: string; total: number; completed: number }> = {};
-    
+
     todos.forEach((todo: typeof todos[number]) => {
       if (!userStats[todo.userId]) {
         userStats[todo.userId] = {
@@ -140,7 +142,7 @@ export async function GET() {
     const overallCompletionRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
 
     // 가장 생산적인 요일 찾기
-    const mostProductiveDay = byDayOfWeek.reduce((prev, current) => 
+    const mostProductiveDay = byDayOfWeek.reduce((prev, current) =>
       (current.completed > prev.completed) ? current : prev
     );
 

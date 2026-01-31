@@ -15,7 +15,7 @@ interface Todo {
   content: string;
   completed: boolean;
   carryOverCount: number;
-  date: string;
+  date: string | null;
 }
 
 export default function TodayPage() {
@@ -88,9 +88,9 @@ export default function TodayPage() {
       </div>
 
       {/* 주간 달력 */}
-      <WeeklyCalendar 
+      <WeeklyCalendar
         ref={weeklyCalendarRef}
-        selectedDate={selectedDate} 
+        selectedDate={selectedDate}
         onDateSelect={setSelectedDate}
         refreshTrigger={weeklyRefreshTrigger}
       />
@@ -111,23 +111,16 @@ export default function TodayPage() {
       )}
 
       {/* 할일 목록 */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">할 일 목록</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <TodoList 
-            date={selectedDate} 
-            onTodosChange={handleTodosChange}
-            onCalendarUpdate={handleCalendarUpdate}
-          />
-        </CardContent>
-      </Card>
+      <TodoList
+        date={selectedDate}
+        onTodosChange={handleTodosChange}
+        onCalendarUpdate={handleCalendarUpdate}
+      />
 
       {/* 모바일 플로팅 추가 버튼 */}
-      <QuickAddFab 
-        date={selectedDate} 
-        onTodoAdded={() => handleCalendarUpdate({ total: 1, completed: 0 })} 
+      <QuickAddFab
+        date={selectedDate}
+        onTodoAdded={() => handleCalendarUpdate({ total: 1, completed: 0 })}
       />
     </div>
   );
