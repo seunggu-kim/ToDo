@@ -1,14 +1,22 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { auth } from "@/lib/auth";
 
 // Cron Job: 미완료 투두 자동 이월 (매일 오전 9시 실행)
+// 또는 로그인한 사용자가 수동으로 호출 가능
 export async function GET(request: Request) {
   try {
     // Vercel Cron Job 인증 확인
     const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      // 개발 환경에서는 CRON_SECRET이 없을 수 있음
-      if (process.env.NODE_ENV === "production" && process.env.CRON_SECRET) {
+    const isCronAuth = authHeader === `Bearer ${process.env.CRON_SECRET}`;
+
+    // 로그인한 사용자 확인 (수동 이월용)
+    const session = await auth();
+    const isUserAuth = !!session?.user?.id;
+
+    // Cron 인증도 아니고 로그인 사용자도 아니면 거부
+    if (!isCronAuth && !isUserAuth) {
+      if (process.env.NODE_ENV === "production") {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
       }
     }
