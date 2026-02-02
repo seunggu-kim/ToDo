@@ -242,8 +242,11 @@ export async function GET() {
         };
       }
 
-      // 꾸준함의 달인: 가장 많은 활동일 (최소 5일 이상)
-      const sortedByConsistency = [...userArray].filter(u => u.activeDays >= 5).sort((a, b) => b.activeDays - a.activeDays);
+      // 꾸준함의 달인: 활동 일수가 가장 많은 사람 (동점이면 완료율, 최소 3일 이상)
+      const sortedByConsistency = [...userArray].filter(u => u.activeDays >= 3).sort((a, b) => {
+        if (b.activeDays !== a.activeDays) return b.activeDays - a.activeDays;
+        return b.completionRate - a.completionRate;
+      });
       if (sortedByConsistency.length > 0) {
         highlights.consistencyMaster = {
           name: sortedByConsistency[0].name,
@@ -252,8 +255,8 @@ export async function GET() {
         };
       }
 
-      // 성장왕: 전주 대비 가장 많이 향상 (최소 +10% 이상)
-      const sortedByGrowth = [...userArray].filter(u => u.growth >= 10).sort((a, b) => b.growth - a.growth);
+      // 성장왕: 전주 대비 성장률이 가장 높은 사람 (최소 0% 초과)
+      const sortedByGrowth = [...userArray].filter(u => u.growth > 0).sort((a, b) => b.growth - a.growth);
       if (sortedByGrowth.length > 0) {
         highlights.growthStar = {
           name: sortedByGrowth[0].name,
