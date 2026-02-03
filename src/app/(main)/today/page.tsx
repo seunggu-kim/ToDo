@@ -7,6 +7,7 @@ import { StartDayButton } from "@/components/start-day-button";
 import { WeeklyCalendar, WeeklyCalendarRef } from "@/components/weekly-calendar";
 import { QuickAddFab } from "@/components/quick-add-fab";
 import { ManualCarryOverButton } from "@/components/manual-carry-over-button";
+import { TeamGoals } from "@/components/team-goals";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Info } from "lucide-react";
@@ -88,6 +89,9 @@ export default function TodayPage() {
         </div>
         {isToday && <ManualCarryOverButton />}
       </div>
+
+      {/* 팀 목표 */}
+      <TeamGoals />
 
       <div>
         <h1 className="text-2xl font-bold">할 일</h1>

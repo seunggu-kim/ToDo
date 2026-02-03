@@ -63,6 +63,7 @@ model User {
   accounts      Account[]
   sessions      Session[]
   todoTemplates TodoTemplate[]
+  createdGoals  TeamGoal[]      @relation("CreatedGoals")
 }
 
 model Team {
@@ -75,6 +76,7 @@ model Team {
 
   members User[]
   todos   Todo[]
+  goals   TeamGoal[]
 }
 
 model Todo {
@@ -120,4 +122,22 @@ model TodoTemplate {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model TeamGoal {
+  id          String    @id @default(cuid())
+  name        String
+  targetDate  DateTime  @db.Date
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  teamId      String
+  createdById String
+
+  team        Team      @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation("CreatedGoals", fields: [createdById], references: [id])
+
+  @@index([teamId, targetDate])
 }
