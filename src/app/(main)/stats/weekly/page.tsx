@@ -7,6 +7,9 @@ import { toast } from "sonner";
 import { RefreshCw, Trophy, Target, Flame, TrendingUp, Lightbulb } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import { HistoryWeekSelector } from "@/components/history-week-selector";
+import { format, addDays } from "date-fns";
+import { ko } from "date-fns/locale";
 
 const LineChart = lazy(() => import("recharts").then(mod => ({ default: mod.LineChart })));
 const Line = lazy(() => import("recharts").then(mod => ({ default: mod.Line })));
@@ -84,23 +87,38 @@ const MEMBER_COLORS = [
   "#00C49F", "#FFBB28", "#FF8042", "#a855f7", "#ec4899"
 ];
 
+// 현재 주간 (화~월) 계산 함수
+function getCurrentWeek() {
+  const today = new Date();
+  const day = today.getDay(); // 0(Sun) - 6(Sat)
+  const diffToTue = day < 2 ? -(day + 5) : -(day - 2);
+  const start = addDays(today, diffToTue);
+  const end = addDays(start, 6);
+  return { start, end };
+}
+
 export default function WeeklyStatsPage() {
   const [data, setData] = useState<WeeklyData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showMemberTrends, setShowMemberTrends] = useState(false);
+  const [dateRange, setDateRange] = useState<{ start: Date; end: Date }>(getCurrentWeek);
 
   useEffect(() => {
     fetchWeeklyStats();
-  }, []);
+  }, [dateRange]);
 
   const fetchWeeklyStats = async (showRefreshToast = false) => {
     try {
       if (showRefreshToast) setIsRefreshing(true);
+      else setIsLoading(true);
+
+      const startStr = format(dateRange.start, "yyyy-MM-dd");
+      const endStr = format(dateRange.end, "yyyy-MM-dd");
 
       // 캐시 확인 (새로고침이 아닐 때만)
+      const cacheKey = `weekly-stats-cache-v3-${startStr}-${endStr}`;
       if (!showRefreshToast) {
-        const cacheKey = 'weekly-stats-cache-v2';
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
           try {
@@ -118,9 +136,10 @@ export default function WeeklyStatsPage() {
         }
       }
 
-      const response = await fetch("/api/stats/weekly", {
-        cache: "no-store",
-      });
+      const response = await fetch(
+        `/api/stats/weekly?startDate=${startStr}&endDate=${endStr}`,
+        { cache: "no-store" }
+      );
       const result = await response.json();
 
       if (!response.ok) {
@@ -128,7 +147,6 @@ export default function WeeklyStatsPage() {
       } else {
         setData(result);
         // 캐시에 저장
-        const cacheKey = 'weekly-stats-cache-v2';
         localStorage.setItem(cacheKey, JSON.stringify({
           data: result,
           timestamp: Date.now(),
@@ -147,6 +165,10 @@ export default function WeeklyStatsPage() {
 
   const handleRefresh = () => {
     fetchWeeklyStats(true);
+  };
+
+  const handleWeekChange = (start: Date, end: Date) => {
+    setDateRange({ start, end });
   };
 
   // 개인별 추이 데이터를 차트용으로 변환
@@ -173,38 +195,23 @@ export default function WeeklyStatsPage() {
     });
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-muted-foreground">로딩 중...</p>
-      </div>
-    );
-  }
-
-  if (!data) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <p className="text-muted-foreground">데이터를 불러올 수 없습니다.</p>
-      </div>
-    );
-  }
-
-  const { highlights, insights } = data;
-  const hasAnyHighlight = highlights.completionKing || highlights.rateChampion ||
-    highlights.consistencyMaster || highlights.growthStar;
+  const highlights = data?.highlights;
+  const insights = data?.insights;
+  const hasAnyHighlight = highlights?.completionKing || highlights?.rateChampion ||
+    highlights?.consistencyMaster || highlights?.growthStar;
 
   return (
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold">주간 통계</h1>
+          <h1 className="text-2xl font-bold">주간 통계 (화~월)</h1>
           <p className="text-muted-foreground">
-            최근 7일간의 팀 생산성을 확인하세요.
+            팀의 주간 생산성을 확인하세요.
           </p>
         </div>
         <Button
           onClick={handleRefresh}
-          disabled={isRefreshing}
+          disabled={isRefreshing || isLoading}
           variant="outline"
           size="sm"
         >
@@ -212,6 +219,30 @@ export default function WeeklyStatsPage() {
           {isRefreshing ? "업데이트 중..." : "새로고침"}
         </Button>
       </div>
+
+      <HistoryWeekSelector
+        startDate={dateRange.start}
+        endDate={dateRange.end}
+        onWeekChange={handleWeekChange}
+        disabled={isLoading || isRefreshing}
+      />
+
+      <div className="text-center">
+        <h2 className="text-lg font-semibold">
+          {format(dateRange.start, "M월 d일", { locale: ko })} - {format(dateRange.end, "M월 d일", { locale: ko })} 통계
+        </h2>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">로딩 중...</p>
+        </div>
+      ) : !data ? (
+        <div className="flex items-center justify-center py-12">
+          <p className="text-muted-foreground">데이터를 불러올 수 없습니다.</p>
+        </div>
+      ) : (
+        <>
 
       {/* 하이라이트 카드 */}
       {hasAnyHighlight && (
@@ -469,6 +500,8 @@ export default function WeeklyStatsPage() {
           </div>
         </CardContent>
       </Card>
+      </>
+      )}
     </div>
   );
 }

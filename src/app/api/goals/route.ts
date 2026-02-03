@@ -1,10 +1,64 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+
+// 개발 환경 체크
+const isDev = process.env.NODE_ENV === "development";
+
+// D-day 계산 헬퍼
+function calculateDday(targetDate: Date): number {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(targetDate);
+  target.setHours(0, 0, 0, 0);
+  const diffTime = target.getTime() - today.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// 개발용 목업 데이터
+function getMockGoals() {
+  const today = new Date();
+
+  // 다양한 D-day 상황을 보여주는 목데이터
+  const mockGoals = [
+    {
+      id: "goal-1",
+      name: "MVP 출시",
+      targetDate: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(), // D-2
+      completed: false,
+      createdBy: { id: "user-1", name: "김개발" },
+    },
+    {
+      id: "goal-2",
+      name: "첫 빌드",
+      targetDate: new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString(), // D-7
+      completed: false,
+      createdBy: { id: "user-1", name: "김개발" },
+    },
+    {
+      id: "goal-3",
+      name: "베타 테스트",
+      targetDate: new Date(today.getTime() + 21 * 24 * 60 * 60 * 1000).toISOString(), // D-21
+      completed: false,
+      createdBy: { id: "user-2", name: "이디자인" },
+    },
+  ];
+
+  return mockGoals.map((goal) => ({
+    ...goal,
+    dday: calculateDday(new Date(goal.targetDate)),
+  }));
+}
 
 // 팀 목표 목록 조회 (미완료 목표, 날짜순)
 export async function GET() {
   try {
+    // 개발 환경: 목업 데이터 반환
+    if (isDev) {
+      return NextResponse.json(getMockGoals());
+    }
+
+    // 프로덕션: 실제 DB 사용
+    const { prisma } = await import("@/lib/prisma");
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -38,21 +92,10 @@ export async function GET() {
       },
     });
 
-    // D-day 계산 추가
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const goalsWithDday = goals.map((goal) => {
-      const targetDate = new Date(goal.targetDate);
-      targetDate.setHours(0, 0, 0, 0);
-      const diffTime = targetDate.getTime() - today.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-      return {
-        ...goal,
-        dday: diffDays,
-      };
-    });
+    const goalsWithDday = goals.map((goal) => ({
+      ...goal,
+      dday: calculateDday(new Date(goal.targetDate)),
+    }));
 
     return NextResponse.json(goalsWithDday);
   } catch (error) {
@@ -64,6 +107,24 @@ export async function GET() {
 // 새 목표 생성
 export async function POST(request: Request) {
   try {
+    const { name, targetDate } = await request.json();
+
+    // 개발 환경: 목업 응답
+    if (isDev) {
+      const parsedDate = new Date(targetDate);
+      const newGoal = {
+        id: `goal-${Date.now()}`,
+        name: name.trim(),
+        targetDate: parsedDate.toISOString(),
+        completed: false,
+        createdBy: { id: "user-1", name: "개발자" },
+        dday: calculateDday(parsedDate),
+      };
+      return NextResponse.json(newGoal, { status: 201 });
+    }
+
+    // 프로덕션: 실제 DB 사용
+    const { prisma } = await import("@/lib/prisma");
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -78,8 +139,6 @@ export async function POST(request: Request) {
     if (!user?.teamId) {
       return NextResponse.json({ error: "팀에 속해 있지 않습니다." }, { status: 400 });
     }
-
-    const { name, targetDate } = await request.json();
 
     if (!name || name.trim() === "") {
       return NextResponse.json({ error: "목표 이름을 입력해주세요." }, { status: 400 });
@@ -109,13 +168,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // D-day 계산
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const diffTime = parsedDate.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-    return NextResponse.json({ ...goal, dday: diffDays }, { status: 201 });
+    return NextResponse.json({ ...goal, dday: calculateDday(parsedDate) }, { status: 201 });
   } catch (error) {
     console.error("Error creating goal:", error);
     return NextResponse.json({ error: "목표 생성 중 오류가 발생했습니다." }, { status: 500 });

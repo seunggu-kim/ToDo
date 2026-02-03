@@ -5,9 +5,8 @@ import { prisma } from "@/lib/prisma";
 // 5분 캐싱 적용 (통계 데이터는 자주 변하지 않음)
 export const revalidate = 300;
 
-// 주간 통계 조회 (최근 7일)
-// 주간 통계 조회 (최근 7일)
-export async function GET() {
+// 주간 통계 조회 (날짜 범위 지정 가능)
+export async function GET(request: Request) {
   try {
     const session = await auth();
 
@@ -24,26 +23,49 @@ export async function GET() {
       return NextResponse.json({ error: "팀에 속해 있지 않습니다." }, { status: 400 });
     }
 
-    // 최근 7일 날짜 계산
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    // URL 파라미터에서 날짜 범위 가져오기
+    const { searchParams } = new URL(request.url);
+    const startDateParam = searchParams.get("startDate");
+    const endDateParam = searchParams.get("endDate");
 
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    let startDate: Date;
+    let endDate: Date;
 
-    // 지난주 데이터 (성장률 계산용)
-    const fourteenDaysAgo = new Date(today);
-    fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 13);
-    const eightDaysAgo = new Date(today);
-    eightDaysAgo.setDate(eightDaysAgo.getDate() - 7);
+    if (startDateParam && endDateParam) {
+      // 파라미터가 있으면 해당 범위 사용
+      startDate = new Date(startDateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(endDateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      // 파라미터가 없으면 현재 주간 (화~월) 계산
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const day = today.getDay(); // 0(Sun) - 6(Sat)
+
+      // 화요일 기준으로 주간 계산
+      const diffToTue = day < 2 ? -(day + 5) : -(day - 2);
+      startDate = new Date(today);
+      startDate.setDate(today.getDate() + diffToTue);
+      endDate = new Date(startDate);
+      endDate.setDate(startDate.getDate() + 6);
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    // 지난주 데이터 (성장률 계산용) - 조회 기간 기준 이전 7일
+    const prevWeekStart = new Date(startDate);
+    prevWeekStart.setDate(prevWeekStart.getDate() - 7);
+    const prevWeekEnd = new Date(startDate);
+    prevWeekEnd.setDate(prevWeekEnd.getDate() - 1);
+    prevWeekEnd.setHours(23, 59, 59, 999);
 
     // 이번 주 투두 데이터 조회
     const todos = await prisma.todo.findMany({
       where: {
         teamId: user.teamId,
         date: {
-          gte: sevenDaysAgo,
-          lte: today,
+          gte: startDate,
+          lte: endDate,
         },
       },
       select: {
@@ -66,8 +88,8 @@ export async function GET() {
       where: {
         teamId: user.teamId,
         date: {
-          gte: fourteenDaysAgo,
-          lt: eightDaysAgo,
+          gte: prevWeekStart,
+          lte: prevWeekEnd,
         },
       },
       select: {
@@ -81,7 +103,7 @@ export async function GET() {
     const dailyStats: Record<string, { total: number; completed: number; date: string }> = {};
 
     for (let i = 0; i < 7; i++) {
-      const date = new Date(sevenDaysAgo);
+      const date = new Date(startDate);
       date.setDate(date.getDate() + i);
       const dateKey = date.toISOString().split("T")[0];
       dailyStats[dateKey] = {
@@ -134,7 +156,7 @@ export async function GET() {
         memberDailyStats[todo.userId] = {};
         // 7일 초기화
         for (let i = 0; i < 7; i++) {
-          const d = new Date(sevenDaysAgo);
+          const d = new Date(startDate);
           d.setDate(d.getDate() + i);
           const dk = d.toISOString().split("T")[0];
           memberDailyStats[todo.userId][dk] = { total: 0, completed: 0 };
@@ -304,8 +326,8 @@ export async function GET() {
 
     return NextResponse.json({
       period: {
-        start: sevenDaysAgo.toISOString(),
-        end: today.toISOString(),
+        start: startDate.toISOString(),
+        end: endDate.toISOString(),
       },
       overall: {
         total: totalTodos,

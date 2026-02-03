@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { GoalDialog } from "@/components/goal-dialog";
-import { Target, Plus } from "lucide-react";
+import { Flag, Plus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -118,57 +118,79 @@ export function TeamGoals() {
     return `D+${Math.abs(dday)}`;
   };
 
-  // D-day에 따른 색상 클래스
+  // D-day에 따른 색상 클래스 - 부드러운 파스텔 톤
   const getDdayColorClass = (dday: number): string => {
-    if (dday < 0) return "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-200 dark:border-red-800";
-    if (dday <= 3) return "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300 border-orange-200 dark:border-orange-800";
-    if (dday <= 7) return "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800";
-    return "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-700";
+    if (dday < 0) {
+      // 지남 - 연한 빨강
+      return "bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800";
+    }
+    if (dday === 0) {
+      // D-Day - primary
+      return "bg-primary/10 text-primary border-primary/30 dark:bg-primary/20 dark:border-primary/40";
+    }
+    if (dday <= 3) {
+      // 3일 이내 - 연한 주황
+      return "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-950/30 dark:text-orange-400 dark:border-orange-800";
+    }
+    if (dday <= 7) {
+      // 7일 이내 - 연한 노랑
+      return "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800";
+    }
+    // 그 외 - 연한 회색
+    return "bg-slate-50 text-slate-600 border-slate-200 dark:bg-slate-800/50 dark:text-slate-400 dark:border-slate-700";
   };
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50">
-        <Target className="h-4 w-4 text-muted-foreground" />
-        <span className="text-sm text-muted-foreground">로딩 중...</span>
+      <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+        <Loader2 className="h-5 w-5 text-slate-400 animate-spin" />
+        <span className="text-sm text-slate-500 dark:text-slate-400">로딩 중...</span>
       </div>
     );
   }
 
   return (
     <>
-      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 overflow-x-auto">
-        <Target className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+      <div className="flex items-center gap-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800">
+        <div className="flex items-center justify-center w-9 h-9 rounded-lg bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 flex-shrink-0">
+          <Flag className="h-4 w-4" />
+        </div>
 
         {goals.length === 0 ? (
-          <span className="text-sm text-muted-foreground">
-            팀 목표를 추가해보세요
-          </span>
+          <div className="flex-1">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+              팀 목표
+            </p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              목표를 추가하고 D-day를 함께 확인하세요
+            </p>
+          </div>
         ) : (
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap flex-1">
             {goals.map((goal) => (
               <button
                 key={goal.id}
                 onClick={() => handleGoalClick(goal)}
                 className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium border transition-all hover:scale-105 cursor-pointer",
+                  "inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border transition-all hover:shadow-sm cursor-pointer",
                   getDdayColorClass(goal.dday)
                 )}
               >
-                <span className="truncate max-w-[120px]">{goal.name}</span>
-                <span className="font-bold">{formatDday(goal.dday)}</span>
+                <span className="truncate max-w-[140px]">{goal.name}</span>
+                <span className="font-semibold">{formatDday(goal.dday)}</span>
               </button>
             ))}
           </div>
         )}
 
         <Button
-          variant="ghost"
-          size="icon"
+          variant="outline"
+          size="sm"
           onClick={handleAddClick}
-          className="h-7 w-7 flex-shrink-0 ml-auto"
+          className="flex-shrink-0"
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 mr-1" />
+          추가
         </Button>
       </div>
 

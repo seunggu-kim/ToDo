@@ -6,11 +6,8 @@ import { TodoList } from "@/components/todo-list";
 import { StartDayButton } from "@/components/start-day-button";
 import { WeeklyCalendar, WeeklyCalendarRef } from "@/components/weekly-calendar";
 import { QuickAddFab } from "@/components/quick-add-fab";
-import { ManualCarryOverButton } from "@/components/manual-carry-over-button";
 import { TeamGoals } from "@/components/team-goals";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Info } from "lucide-react";
 
 interface Todo {
   id: string;
@@ -74,22 +71,6 @@ export default function TodayPage() {
 
   return (
     <div className="space-y-6">
-      {/* 이월 안내 배너 */}
-      <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900">
-        <div className="flex items-start gap-3 flex-1">
-          <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
-          <div className="space-y-1">
-            <p className="text-sm text-blue-900 dark:text-blue-100 font-medium">
-              매일 오전 9시, 미완료 항목이 자동으로 오늘로 이월됩니다
-            </p>
-            <p className="text-xs text-blue-700 dark:text-blue-300">
-              자동 이월 전에 미리 가져오고 싶다면 버튼을 눌러주세요
-            </p>
-          </div>
-        </div>
-        {isToday && <ManualCarryOverButton />}
-      </div>
-
       {/* 팀 목표 */}
       <TeamGoals />
 
