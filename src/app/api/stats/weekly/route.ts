@@ -99,6 +99,35 @@ export async function GET(request: Request) {
       },
     });
 
+    // 팀원들의 dayStart 데이터 조회 (업무 시작 기준 꾸준함 계산용)
+    const teamMembers = await prisma.user.findMany({
+      where: { teamId: user.teamId },
+      select: { id: true, name: true, email: true },
+    });
+
+    const dayStartsInWeek = await prisma.dayStart.findMany({
+      where: {
+        userId: { in: teamMembers.map(m => m.id) },
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      select: {
+        userId: true,
+        date: true,
+      },
+    });
+
+    // 팀원별 업무 시작 일수 계산
+    const memberDayStartCounts: Record<string, number> = {};
+    dayStartsInWeek.forEach((ds) => {
+      if (!memberDayStartCounts[ds.userId]) {
+        memberDayStartCounts[ds.userId] = 0;
+      }
+      memberDayStartCounts[ds.userId]++;
+    });
+
     // 날짜별 집계 (팀 전체)
     const dailyStats: Record<string, { total: number; completed: number; date: string }> = {};
 
@@ -264,16 +293,26 @@ export async function GET(request: Request) {
         };
       }
 
-      // 꾸준함의 달인: 활동 일수가 가장 많은 사람 (동점이면 완료율, 최소 3일 이상)
-      const sortedByConsistency = [...userArray].filter(u => u.activeDays >= 3).sort((a, b) => {
-        if (b.activeDays !== a.activeDays) return b.activeDays - a.activeDays;
+      // 꾸준함의 달인: 업무 시작 일수가 가장 많은 사람 (동점이면 완료율, 최소 3일 이상)
+      const membersWithDayStarts = teamMembers.map(m => {
+        const userStat = userArray.find(u => u.email === m.email);
+        return {
+          name: m.name || "이름 없음",
+          email: m.email,
+          dayStartCount: memberDayStartCounts[m.id] || 0,
+          completionRate: userStat?.completionRate || 0,
+        };
+      }).filter(m => m.dayStartCount >= 3);
+
+      const sortedByConsistency = membersWithDayStarts.sort((a, b) => {
+        if (b.dayStartCount !== a.dayStartCount) return b.dayStartCount - a.dayStartCount;
         return b.completionRate - a.completionRate;
       });
       if (sortedByConsistency.length > 0) {
         highlights.consistencyMaster = {
           name: sortedByConsistency[0].name,
           email: sortedByConsistency[0].email,
-          value: sortedByConsistency[0].activeDays,
+          value: sortedByConsistency[0].dayStartCount,
         };
       }
 

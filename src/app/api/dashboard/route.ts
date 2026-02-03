@@ -70,8 +70,8 @@ export async function GET() {
       const completedCount = todos.filter((t: typeof todos[number]) => t.completed).length;
       const dayStart = member.dayStarts[0];
 
-      // 스트릭 계산: 과거 30일간의 데이터 조회
-      const pastTodos = await prisma.todo.findMany({
+      // 스트릭 계산: 과거 30일간의 dayStart 데이터 조회 (업무 시작 기준)
+      const pastDayStarts = await prisma.dayStart.findMany({
         where: {
           userId: member.id,
           date: {
@@ -81,47 +81,32 @@ export async function GET() {
         },
         select: {
           date: true,
-          completed: true,
         },
       });
 
-      // 날짜별로 그룹화
-      const dailyCompletion: Record<string, { total: number; completed: number }> = {};
-      pastTodos.forEach((todo: typeof pastTodos[number]) => {
-        const dateKey = todo.date?.toISOString().split("T")[0];
-        if (!dateKey) return; // 백로그(날짜 없음)는 스킵
-        if (!dailyCompletion[dateKey]) {
-          dailyCompletion[dateKey] = { total: 0, completed: 0 };
-        }
-        dailyCompletion[dateKey].total++;
-        if (todo.completed) {
-          dailyCompletion[dateKey].completed++;
-        }
+      // 업무 시작한 날짜들을 Set으로 저장
+      const startedDates = new Set<string>();
+      pastDayStarts.forEach((ds: typeof pastDayStarts[number]) => {
+        const dateKey = ds.date.toISOString().split("T")[0];
+        startedDates.add(dateKey);
       });
 
-      // 연속 달성일 계산 (오늘부터 역순으로)
+      // 연속 업무 시작일 계산 (어제부터 역순으로)
       let streak = 0;
       const checkDate = new Date(today);
       checkDate.setDate(checkDate.getDate() - 1); // 어제부터 시작
 
-      while (true) {
+      while (checkDate >= thirtyDaysAgo) {
         const dateKey = checkDate.toISOString().split("T")[0];
-        const dayData = dailyCompletion[dateKey];
 
-        if (dayData && dayData.total > 0 && dayData.completed === dayData.total) {
-          // 100% 완료한 날
+        if (startedDates.has(dateKey)) {
+          // 업무 시작한 날
           streak++;
           checkDate.setDate(checkDate.getDate() - 1);
-        } else if (!dayData || dayData.total === 0) {
-          // 투두가 없는 날은 스킵
-          checkDate.setDate(checkDate.getDate() - 1);
-          if (checkDate < thirtyDaysAgo) break;
         } else {
-          // 100% 완료하지 못한 날
+          // 업무 시작하지 않은 날 → 연속 끊김
           break;
         }
-
-        if (checkDate < thirtyDaysAgo) break;
       }
 
       return {

@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { HistoryWeekSelector } from "@/components/history-week-selector";
 import { format, addDays } from "date-fns";
-import { ko } from "date-fns/locale";
 
 const LineChart = lazy(() => import("recharts").then(mod => ({ default: mod.LineChart })));
 const Line = lazy(() => import("recharts").then(mod => ({ default: mod.Line })));
@@ -226,12 +225,6 @@ export default function WeeklyStatsPage() {
         onWeekChange={handleWeekChange}
         disabled={isLoading || isRefreshing}
       />
-
-      <div className="text-center">
-        <h2 className="text-lg font-semibold">
-          {format(dateRange.start, "M월 d일", { locale: ko })} - {format(dateRange.end, "M월 d일", { locale: ko })} 통계
-        </h2>
-      </div>
 
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
