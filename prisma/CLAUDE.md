@@ -1,0 +1,1 @@
+C:/project/ToDo/prisma/AGENTS.md
