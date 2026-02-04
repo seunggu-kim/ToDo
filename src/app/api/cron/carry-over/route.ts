@@ -62,12 +62,6 @@ export async function GET(request: Request) {
           },
         });
 
-        // 원본 투두는 이월 표시
-        await prisma.todo.update({
-          where: { id: todo.id },
-          data: { completed: true, completedAt: new Date() },
-        });
-
         carriedCount++;
       }
     }
