@@ -384,8 +384,8 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
     const startDate = startDateParam || defaultStart.toISOString().split("T")[0];
     const endDate = endDateParam || defaultEnd.toISOString().split("T")[0];
 
-    // 일별 통계 생성
-    const daily: { date: string; total: number; completed: number; completionRate: number }[] = [];
+    // 일별 통계 생성 — 신규/이월 구분
+    const daily: { date: string; total: number; newTodos: number; carriedOver: number; completed: number; completionRate: number }[] = [];
     const start = new Date(startDate);
     const end = new Date(endDate);
 
@@ -394,10 +394,14 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
       const dayTodos = store.todos.filter((t) => t.date === dateStr);
       const completed = dayTodos.filter((t) => t.completed).length;
       const total = dayTodos.length;
+      const carriedOver = dayTodos.filter((t) => t.carryOverCount > 0).length;
+      const newTodos = total - carriedOver;
 
       daily.push({
         date: dateStr,
         total,
+        newTodos,
+        carriedOver,
         completed,
         completionRate: total > 0 ? Math.round((completed / total) * 100) : 0,
       });
@@ -445,13 +449,28 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
     const topByRate = [...byMember].sort((a, b) => b.completionRate - a.completionRate)[0];
     const topByGrowth = [...byMember].filter(m => m.growth && m.growth > 0).sort((a, b) => (b.growth || 0) - (a.growth || 0))[0];
 
+    // 전주 비교 데이터
+    const prevTotal = Math.max(5, totalAll - Math.floor(Math.random() * 10));
+    const prevCompleted = Math.floor(prevTotal * (0.5 + Math.random() * 0.3));
+    const overallRate = totalAll > 0 ? Math.round((completedAll / totalAll) * 100) : 0;
+    const carryOverAll = daily.reduce((sum, d) => sum + d.carriedOver, 0);
+    const newTodosAll = totalAll - carryOverAll;
+
     return {
       data: {
         period: { start: startDate, end: endDate },
+        currentUserEmail: store.user.email,
         overall: {
           total: totalAll,
+          newTodos: newTodosAll,
+          carryOver: carryOverAll,
           completed: completedAll,
-          completionRate: totalAll > 0 ? Math.round((completedAll / totalAll) * 100) : 0,
+          completionRate: overallRate,
+        },
+        previousPeriod: {
+          total: prevTotal,
+          completed: prevCompleted,
+          completionRate: prevTotal > 0 ? Math.round((prevCompleted / prevTotal) * 100) : 0,
         },
         daily,
         memberDaily,
@@ -463,11 +482,10 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
           growthStar: topByGrowth ? { name: topByGrowth.name, email: topByGrowth.email, value: topByGrowth.growth || 0 } : null,
         },
         insights: [
-          "이번 주 팀 완료율이 지난 주 대비 5% 상승했습니다.",
-          "수요일에 가장 많은 할 일을 완료했습니다.",
-          `${topByCompleted?.name || "팀원"}님이 가장 많은 할 일을 완료했습니다.`,
+          "전주 대비 팀 완료율이 5%p 상승했어요!",
+          "수요일에 가장 많이 완료했어요! (8개)",
+          "팀 완료율이 60% 이상이에요. 잘하고 있어요!",
         ],
-        mvp: byMember[0] || null,
       },
       status: 200,
     };
@@ -507,9 +525,14 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
         weekCompleted = Math.floor(weekTotal * (0.5 + Math.random() * 0.4));
       }
 
+      const weekCarriedOver = Math.floor(weekTotal * (0.1 + Math.random() * 0.2));
+      const weekNewTodos = weekTotal - weekCarriedOver;
+
       byWeek.push({
         week: `${week + 1}주차`,
         total: weekTotal,
+        newTodos: weekNewTodos,
+        carriedOver: weekCarriedOver,
         completed: weekCompleted,
         completionRate: weekTotal > 0 ? Math.round((weekCompleted / weekTotal) * 100) : 0,
       });
@@ -521,16 +544,21 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
       // Mock 데이터 생성
       const total = 8 + Math.floor(Math.random() * 12);
       const completed = Math.floor(total * (0.4 + Math.random() * 0.5));
+      const carriedOver = Math.floor(total * (0.1 + Math.random() * 0.2));
+      const newTodos = total - carriedOver;
       return {
         day,
         total,
+        newTodos,
+        carriedOver,
         completed,
         completionRate: Math.round((completed / total) * 100),
       };
     });
 
     // 가장 생산성 높은 요일 찾기
-    const mostProductiveDay = [...byDayOfWeek].sort((a, b) => b.completionRate - a.completionRate)[0].day;
+    const mostProductiveDayStat = [...byDayOfWeek].sort((a, b) => b.completed - a.completed)[0];
+    const mostProductiveDay = mostProductiveDayStat.day;
 
     // 팀원별 통계
     const byMember = store.team.members.map((member) => {
@@ -543,24 +571,54 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
         completed: memberCompleted,
         completionRate: Math.round((memberCompleted / memberTotal) * 100),
       };
-    }).sort((a, b) => b.completionRate - a.completionRate);
+    }).sort((a, b) => b.completed - a.completed);
 
     // 전체 통계
     const totalAll = byWeek.reduce((sum, w) => sum + w.total, 0);
     const completedAll = byWeek.reduce((sum, w) => sum + w.completed, 0);
+    const overallRate = totalAll > 0 ? Math.round((completedAll / totalAll) * 100) : 0;
+
+    // 전월 비교 데이터
+    const prevTotal = Math.max(10, totalAll - Math.floor(Math.random() * 20));
+    const prevCompleted = Math.floor(prevTotal * (0.5 + Math.random() * 0.3));
+    const monthlyCarryOverAll = byWeek.reduce((sum: number, w: { carriedOver: number }) => sum + w.carriedOver, 0);
+    const monthlyNewTodosAll = totalAll - monthlyCarryOverAll;
+
+    // 하이라이트
+    const topByCompleted = byMember[0];
+    const topByRate = [...byMember].sort((a, b) => b.completionRate - a.completionRate)[0];
 
     return {
       data: {
         period: { start: startDate, end: endDate },
+        currentUserEmail: store.user.email,
         overall: {
           total: totalAll,
+          newTodos: monthlyNewTodosAll,
+          carryOver: monthlyCarryOverAll,
           completed: completedAll,
-          completionRate: totalAll > 0 ? Math.round((completedAll / totalAll) * 100) : 0,
+          completionRate: overallRate,
           mostProductiveDay,
+        },
+        previousPeriod: {
+          total: prevTotal,
+          completed: prevCompleted,
+          completionRate: prevTotal > 0 ? Math.round((prevCompleted / prevTotal) * 100) : 0,
         },
         byWeek,
         byDayOfWeek,
         byMember,
+        highlights: {
+          completionKing: topByCompleted ? { name: topByCompleted.name, email: topByCompleted.email, value: topByCompleted.completed } : null,
+          rateChampion: topByRate ? { name: topByRate.name, email: topByRate.email, value: topByRate.completionRate } : null,
+          growthStar: byMember[1] ? { name: byMember[1].name, email: byMember[1].email, value: 12 } : null,
+        },
+        insights: [
+          "전월 대비 팀 완료율이 8%p 상승했어요!",
+          `${byWeek[byWeek.length - 1]?.week || "최근"} 주간이 가장 높은 완료율을 보였어요.`,
+          `${mostProductiveDay}에 가장 많이 완료하는 경향이 있어요. (${mostProductiveDayStat.completed}개)`,
+          "팀 완료율이 60% 이상이에요. 잘하고 있어요!",
+        ],
       },
       status: 200,
     };

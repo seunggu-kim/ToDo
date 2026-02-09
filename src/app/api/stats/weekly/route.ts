@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
     const user = await prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { teamId: true },
+      select: { teamId: true, email: true },
     });
 
     if (!user?.teamId) {
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       endDate.setHours(23, 59, 59, 999);
     }
 
-    // 지난주 데이터 (성장률 계산용) - 조회 기간 기준 이전 7일
+    // 지난주 데이터 (성장률 계산 + 전주 대비 비교용)
     const prevWeekStart = new Date(startDate);
     prevWeekStart.setDate(prevWeekStart.getDate() - 7);
     const prevWeekEnd = new Date(startDate);
@@ -72,6 +72,7 @@ export async function GET(request: Request) {
         id: true,
         content: true,
         completed: true,
+        carryOverCount: true,
         date: true,
         userId: true,
         user: {
@@ -83,7 +84,7 @@ export async function GET(request: Request) {
       },
     });
 
-    // 지난주 투두 데이터 (성장률 계산용)
+    // 지난주 투두 데이터 (성장률 + 전주 비교용)
     const lastWeekTodos = await prisma.todo.findMany({
       where: {
         teamId: user.teamId,
@@ -128,8 +129,8 @@ export async function GET(request: Request) {
       memberDayStartCounts[ds.userId]++;
     });
 
-    // 날짜별 집계 (팀 전체)
-    const dailyStats: Record<string, { total: number; completed: number; date: string }> = {};
+    // 날짜별 집계 (팀 전체) — 신규/이월 구분
+    const dailyStats: Record<string, { total: number; newTodos: number; carriedOver: number; completed: number; date: string }> = {};
 
     for (let i = 0; i < 7; i++) {
       const date = new Date(startDate);
@@ -138,6 +139,8 @@ export async function GET(request: Request) {
       dailyStats[dateKey] = {
         date: dateKey,
         total: 0,
+        newTodos: 0,
+        carriedOver: 0,
         completed: 0,
       };
     }
@@ -146,6 +149,11 @@ export async function GET(request: Request) {
       const dateKey = todo.date?.toISOString().split("T")[0];
       if (dateKey && dailyStats[dateKey]) {
         dailyStats[dateKey].total++;
+        if (todo.carryOverCount > 0) {
+          dailyStats[dateKey].carriedOver++;
+        } else {
+          dailyStats[dateKey].newTodos++;
+        }
         if (todo.completed) {
           dailyStats[dateKey].completed++;
         }
@@ -224,12 +232,12 @@ export async function GET(request: Request) {
       const completionRate = stat.total > 0 ? Math.round((stat.completed / stat.total) * 100) : 0;
       const activeDaysCount = stat.activeDays.size;
 
-      // 성장률 계산
+      // 성장률 계산: 전주에 최소 3개 이상 등록한 사람만 의미있는 비교 가능
       const lastWeek = lastWeekUserStats[stat.userId];
-      const lastWeekRate = lastWeek && lastWeek.total > 0
+      const hasLastWeekData = lastWeek && lastWeek.total >= 3;
+      const lastWeekRate = hasLastWeekData
         ? Math.round((lastWeek.completed / lastWeek.total) * 100)
         : 0;
-      const growth = completionRate - lastWeekRate;
 
       return {
         name: stat.name,
@@ -238,7 +246,7 @@ export async function GET(request: Request) {
         completed: stat.completed,
         completionRate,
         activeDays: activeDaysCount,
-        growth,
+        growth: hasLastWeekData ? completionRate - lastWeekRate : undefined,
       };
     });
 
@@ -316,13 +324,15 @@ export async function GET(request: Request) {
         };
       }
 
-      // 성장왕: 전주 대비 성장률이 가장 높은 사람 (최소 0% 초과)
-      const sortedByGrowth = [...userArray].filter(u => u.growth > 0).sort((a, b) => b.growth - a.growth);
+      // 성장왕: 전주 대비 성장률이 가장 높은 사람 (전주 3개 이상 등록한 사람만)
+      const sortedByGrowth = [...userArray]
+        .filter(u => u.growth !== undefined && u.growth > 0)
+        .sort((a, b) => (b.growth ?? 0) - (a.growth ?? 0));
       if (sortedByGrowth.length > 0) {
         highlights.growthStar = {
           name: sortedByGrowth[0].name,
           email: sortedByGrowth[0].email,
-          value: sortedByGrowth[0].growth,
+          value: sortedByGrowth[0].growth!,
         };
       }
     }
@@ -330,37 +340,55 @@ export async function GET(request: Request) {
     // === 인사이트 생성 ===
     const insights: string[] = [];
 
-    // 가장 생산적인 날 찾기
+    // 팀 전체 통계
+    const totalTodos = todos.length;
+    const completedTodos = todos.filter((t: typeof todos[number]) => t.completed).length;
+    const carryOverTotal = todos.filter((t: typeof todos[number]) => t.carryOverCount > 0).length;
+    const newTodosTotal = totalTodos - carryOverTotal;
+    const overallCompletionRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
+
+    // 전주 통계
+    const prevTotal = lastWeekTodos.length;
+    const prevCompleted = lastWeekTodos.filter((t: typeof lastWeekTodos[number]) => t.completed).length;
+    const prevCompletionRate = prevTotal > 0 ? Math.round((prevCompleted / prevTotal) * 100) : 0;
+
+    // 전주 대비 변화
+    if (prevTotal > 0 && totalTodos > 0) {
+      const rateDiff = overallCompletionRate - prevCompletionRate;
+      if (rateDiff > 5) {
+        insights.push(`전주 대비 팀 완료율이 ${rateDiff}%p 상승했어요!`);
+      } else if (rateDiff < -5) {
+        insights.push(`전주 대비 팀 완료율이 ${Math.abs(rateDiff)}%p 하락했어요.`);
+      }
+    }
+
+    // 가장 많이 완료한 날 찾기 (최소 2개 이상일 때만 의미)
     const bestDay = dailyArray.reduce((prev, curr) =>
-      (curr.completionRate > prev.completionRate) ? curr : prev
+      (curr.completed > prev.completed) ? curr : prev
       , dailyArray[0]);
 
-    if (bestDay && bestDay.completionRate > 0) {
+    if (bestDay && bestDay.completed >= 2) {
       const dayNames = ["일", "월", "화", "수", "목", "금", "토"];
       const bestDayDate = new Date(bestDay.date);
       const dayName = dayNames[bestDayDate.getDay()];
-      insights.push(`이번 주는 ${dayName}요일이 가장 생산적이었어요! (${bestDay.completionRate}% 완료)`);
+      insights.push(`${dayName}요일에 가장 많이 완료했어요! (${bestDay.completed}개)`);
+    }
+
+    // 이월 비율 인사이트
+    if (totalTodos > 0 && carryOverTotal > 0) {
+      const carryOverRate = Math.round((carryOverTotal / totalTodos) * 100);
+      if (carryOverRate >= 40) {
+        insights.push(`이월 투두 비율이 ${carryOverRate}%에요. 업무 분배를 점검해 보세요.`);
+      } else if (carryOverRate >= 20) {
+        insights.push(`이월 투두가 ${carryOverTotal}개(${carryOverRate}%)로 적정 수준이에요.`);
+      }
     }
 
     // 팀 전체 완료율 평가
-    const totalTodos = todos.length;
-    const completedTodos = todos.filter((t: typeof todos[number]) => t.completed).length;
-    const overallCompletionRate = totalTodos > 0 ? Math.round((completedTodos / totalTodos) * 100) : 0;
-
     if (overallCompletionRate >= 80) {
-      insights.push("🎉 팀 전체 완료율이 80%를 넘었어요! 대단해요!");
+      insights.push("팀 완료율이 80%를 넘었어요! 대단해요!");
     } else if (overallCompletionRate >= 60) {
-      insights.push("👍 팀 전체 완료율이 60% 이상이에요. 잘하고 있어요!");
-    }
-
-    // MVP (하위 호환용, 기존 로직 유지)
-    let mvp = null;
-    if (userArray.length > 0) {
-      mvp = userArray.reduce((prev, current) => {
-        const prevScore = prev.total > 0 ? (prev.completionRate * 0.7) + (prev.completed * 0.3) : 0;
-        const currentScore = current.total > 0 ? (current.completionRate * 0.7) + (current.completed * 0.3) : 0;
-        return currentScore > prevScore ? current : prev;
-      });
+      insights.push("팀 완료율이 60% 이상이에요. 잘하고 있어요!");
     }
 
     return NextResponse.json({
@@ -368,17 +396,24 @@ export async function GET(request: Request) {
         start: startDate.toISOString(),
         end: endDate.toISOString(),
       },
+      currentUserEmail: user!.email,
       overall: {
         total: totalTodos,
+        newTodos: newTodosTotal,
+        carryOver: carryOverTotal,
         completed: completedTodos,
         completionRate: overallCompletionRate,
       },
+      previousPeriod: {
+        total: prevTotal,
+        completed: prevCompleted,
+        completionRate: prevCompletionRate,
+      },
       daily: dailyArray,
-      memberDaily, // NEW: 팀원별 일별 추이
+      memberDaily,
       byMember: userArray,
-      highlights, // NEW: 다양한 하이라이트
-      insights, // NEW: 자동 생성 인사이트
-      mvp, // deprecated but kept for compat
+      highlights,
+      insights,
     });
   } catch (error) {
     console.error("Weekly stats fetch error:", error);

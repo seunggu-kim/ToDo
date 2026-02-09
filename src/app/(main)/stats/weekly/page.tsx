@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { HistoryWeekSelector } from "@/components/history-week-selector";
 import { format, addDays } from "date-fns";
+import { ko } from "date-fns/locale";
 
 const LineChart = lazy(() => import("recharts").then(mod => ({ default: mod.LineChart })));
 const Line = lazy(() => import("recharts").then(mod => ({ default: mod.Line })));
@@ -24,6 +25,8 @@ const ResponsiveContainer = lazy(() => import("recharts").then(mod => ({ default
 interface DailyStat {
   date: string;
   total: number;
+  newTodos: number;
+  carriedOver: number;
   completed: number;
   completionRate: number;
 }
@@ -62,23 +65,38 @@ interface Highlights {
   growthStar: Highlight | null;
 }
 
+interface PeriodStats {
+  total: number;
+  completed: number;
+  completionRate: number;
+}
+
 interface WeeklyData {
   period: {
     start: string;
     end: string;
   };
+  currentUserEmail: string;
   overall: {
     total: number;
+    newTodos: number;
+    carryOver: number;
     completed: number;
     completionRate: number;
   };
+  previousPeriod: PeriodStats;
   daily: DailyStat[];
   memberDaily: MemberDailyStat[];
   byMember: MemberStat[];
   highlights: Highlights;
   insights: string[];
-  mvp: MemberStat | null;
 }
+
+// 날짜에 요일을 포함한 포맷 (예: 2/3(화))
+const formatDateWithDay = (value: unknown) => {
+  const date = new Date(String(value));
+  return format(date, "M/d(eee)", { locale: ko });
+};
 
 // 팀원별로 다른 색상 사용
 const MEMBER_COLORS = [
@@ -94,6 +112,19 @@ function getCurrentWeek() {
   const start = addDays(today, diffToTue);
   const end = addDays(start, 6);
   return { start, end };
+}
+
+// 전주 대비 증감 표시 컴포넌트
+function TrendIndicator({ current, previous, unit = "" }: { current: number; previous: number; unit?: string }) {
+  if (previous === 0) return null;
+  const diff = current - previous;
+  if (diff === 0) return <span className="text-xs text-muted-foreground">전주와 동일</span>;
+  const isUp = diff > 0;
+  return (
+    <span className={`text-xs ${isUp ? "text-green-600 dark:text-green-400" : "text-orange-600 dark:text-orange-400"}`}>
+      {isUp ? "↑" : "↓"} 전주 대비 {isUp ? "+" : ""}{diff}{unit}
+    </span>
+  );
 }
 
 export default function WeeklyStatsPage() {
@@ -116,7 +147,7 @@ export default function WeeklyStatsPage() {
       const endStr = format(dateRange.end, "yyyy-MM-dd");
 
       // 캐시 확인 (새로고침이 아닐 때만)
-      const cacheKey = `weekly-stats-cache-v3-${startStr}-${endStr}`;
+      const cacheKey = `weekly-stats-cache-v6-${startStr}-${endStr}`;
       if (!showRefreshToast) {
         const cached = localStorage.getItem(cacheKey);
         if (cached) {
@@ -253,52 +284,52 @@ export default function WeeklyStatsPage() {
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {highlights.completionKing && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-background/60 border">
-                  <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30">
+                  <div className="p-2 rounded-full bg-yellow-100 dark:bg-yellow-900/30 flex-shrink-0">
                     <Trophy className="h-5 w-5 text-yellow-600 dark:text-yellow-400" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">완료왕</p>
-                    <p className="font-semibold">{highlights.completionKing.name}</p>
-                    <p className="text-sm text-muted-foreground">{highlights.completionKing.value}개 완료</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">완료왕</p>
+                    <p className="font-semibold text-sm">{highlights.completionKing.name}</p>
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">{highlights.completionKing.value}개 완료</p>
                   </div>
                 </div>
               )}
 
               {highlights.rateChampion && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-background/60 border">
-                  <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30">
+                  <div className="p-2 rounded-full bg-green-100 dark:bg-green-900/30 flex-shrink-0">
                     <Target className="h-5 w-5 text-green-600 dark:text-green-400" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">완료율 챔피언</p>
-                    <p className="font-semibold">{highlights.rateChampion.name}</p>
-                    <p className="text-sm text-muted-foreground">{highlights.rateChampion.value}% 달성</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">완료율 챔피언</p>
+                    <p className="font-semibold text-sm">{highlights.rateChampion.name}</p>
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">{highlights.rateChampion.value}% 달성</p>
                   </div>
                 </div>
               )}
 
               {highlights.consistencyMaster && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-background/60 border">
-                  <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30">
+                  <div className="p-2 rounded-full bg-orange-100 dark:bg-orange-900/30 flex-shrink-0">
                     <Flame className="h-5 w-5 text-orange-600 dark:text-orange-400" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">꾸준함의 달인</p>
-                    <p className="font-semibold">{highlights.consistencyMaster.name}</p>
-                    <p className="text-sm text-muted-foreground">{highlights.consistencyMaster.value}일 연속 활동</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">꾸준함의 달인</p>
+                    <p className="font-semibold text-sm">{highlights.consistencyMaster.name}</p>
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">{highlights.consistencyMaster.value}일 업무 시작</p>
                   </div>
                 </div>
               )}
 
               {highlights.growthStar && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-background/60 border">
-                  <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30">
+                  <div className="p-2 rounded-full bg-purple-100 dark:bg-purple-900/30 flex-shrink-0">
                     <TrendingUp className="h-5 w-5 text-purple-600 dark:text-purple-400" />
                   </div>
-                  <div>
-                    <p className="text-xs text-muted-foreground">성장왕</p>
-                    <p className="font-semibold">{highlights.growthStar.name}</p>
-                    <p className="text-sm text-muted-foreground">+{highlights.growthStar.value}% 향상</p>
+                  <div className="min-w-0">
+                    <p className="text-xs text-muted-foreground whitespace-nowrap">성장왕</p>
+                    <p className="font-semibold text-sm">{highlights.growthStar.name}</p>
+                    <p className="text-sm text-muted-foreground whitespace-nowrap">+{highlights.growthStar.value}%p 향상</p>
                   </div>
                 </div>
               )}
@@ -328,8 +359,20 @@ export default function WeeklyStatsPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>전체 투두</CardDescription>
+            <CardDescription>등록된 투두</CardDescription>
             <CardTitle className="text-3xl">{data.overall.total}</CardTitle>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>신규 {data.overall.newTodos}</span>
+              {data.overall.carryOver > 0 && (
+                <>
+                  <span>·</span>
+                  <span className="text-amber-600 dark:text-amber-400">이월 {data.overall.carryOver}</span>
+                </>
+              )}
+            </div>
+            {data.previousPeriod && (
+              <TrendIndicator current={data.overall.total} previous={data.previousPeriod.total} unit="개" />
+            )}
           </CardHeader>
         </Card>
         <Card>
@@ -338,12 +381,18 @@ export default function WeeklyStatsPage() {
             <CardTitle className="text-3xl text-green-600">
               {data.overall.completed}
             </CardTitle>
+            {data.previousPeriod && (
+              <TrendIndicator current={data.overall.completed} previous={data.previousPeriod.completed} unit="개" />
+            )}
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardDescription>평균 완료율</CardDescription>
+            <CardDescription>완료율</CardDescription>
             <CardTitle className="text-3xl">{data.overall.completionRate}%</CardTitle>
+            {data.previousPeriod && (
+              <TrendIndicator current={data.overall.completionRate} previous={data.previousPeriod.completionRate} unit="%p" />
+            )}
           </CardHeader>
         </Card>
       </div>
@@ -353,7 +402,7 @@ export default function WeeklyStatsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>일별 완료율 추이</CardTitle>
-              <CardDescription>최근 7일간의 완료율 변화</CardDescription>
+              <CardDescription>이번 주 완료율 변화</CardDescription>
             </div>
             <div className="flex items-center space-x-2">
               <Checkbox
@@ -374,17 +423,11 @@ export default function WeeklyStatsPage() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return `${date.getMonth() + 1}/${date.getDate()}`;
-                  }}
+                  tickFormatter={formatDateWithDay}
                 />
                 <YAxis domain={[0, 100]} />
                 <Tooltip
-                  labelFormatter={(value) => {
-                    const date = new Date(value as string);
-                    return date.toLocaleDateString("ko-KR");
-                  }}
+                  labelFormatter={formatDateWithDay}
                   formatter={(value, name) => {
                     if (value === null) return ["-", name];
                     return [`${value}%`, name];
@@ -421,31 +464,24 @@ export default function WeeklyStatsPage() {
       </Card>
 
       <Card>
-        <CardHeader>
-          <CardTitle>일별 투두 현황</CardTitle>
-          <CardDescription>날짜별 전체/완료 투두 개수</CardDescription>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">일별 업무 구성</CardTitle>
+          <CardDescription>날짜별 신규 등록, 이월, 완료 현황</CardDescription>
         </CardHeader>
         <CardContent>
-          <Suspense fallback={<div className="flex items-center justify-center h-[300px]">차트 로딩 중...</div>}>
-            <ResponsiveContainer width="100%" height={300}>
+          <Suspense fallback={<div className="flex items-center justify-center h-[250px]">차트 로딩 중...</div>}>
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={data.daily}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis
-                  dataKey="date"
-                  tickFormatter={(value) => {
-                    const date = new Date(value);
-                    return `${date.getMonth() + 1}/${date.getDate()}`;
-                  }}
-                />
-                <YAxis />
+                <XAxis dataKey="date" tickFormatter={formatDateWithDay} />
+                <YAxis allowDecimals={false} />
                 <Tooltip
-                  labelFormatter={(value) => {
-                    const date = new Date(value as string);
-                    return date.toLocaleDateString("ko-KR");
-                  }}
+                  labelFormatter={formatDateWithDay}
+                  formatter={(value) => [`${value}개`]}
                 />
                 <Legend />
-                <Bar dataKey="total" name="전체" fill="#94a3b8" />
+                <Bar dataKey="newTodos" name="신규" fill="#94a3b8" />
+                <Bar dataKey="carriedOver" name="이월" fill="#f59e0b" />
                 <Bar dataKey="completed" name="완료" fill="#10b981" />
               </BarChart>
             </ResponsiveContainer>
@@ -456,35 +492,52 @@ export default function WeeklyStatsPage() {
       <Card>
         <CardHeader>
           <CardTitle>팀원별 요약</CardTitle>
-          <CardDescription>팀원별 주간 완료 현황</CardDescription>
+          <CardDescription>완료율 순으로 정렬된 주간 현황</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
             {data.byMember.length > 0 ? (
-              data.byMember.map((member, index) => (
-                <div key={index} className="flex items-center justify-between py-3 border-b last:border-0">
-                  <div>
-                    <p className="font-medium">{member.name}</p>
-                    <p className="text-sm text-muted-foreground">{member.email}</p>
+              data.byMember.map((member, index) => {
+                const isMe = member.email === data.currentUserEmail;
+                return (
+                  <div
+                    key={index}
+                    className={`flex items-center gap-4 py-3 border-b last:border-0 ${isMe ? "bg-primary/5 -mx-3 px-3 rounded-lg border-b-0" : ""}`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">{member.name}</p>
+                        {isMe && <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded">나</span>}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{member.email}</p>
+                      {member.growth !== undefined && member.growth > 0 && (
+                        <p className="text-xs text-green-600 dark:text-green-400">
+                          ↑ 전주 대비 +{member.growth}%p
+                        </p>
+                      )}
+                      {member.growth !== undefined && member.growth < 0 && (
+                        <p className="text-xs text-orange-600 dark:text-orange-400">
+                          ↓ 전주 대비 {member.growth}%p
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="text-xs text-muted-foreground">등록</p>
+                        <p className="text-lg font-semibold">{member.total}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-green-600 dark:text-green-400">완료</p>
+                        <p className="text-lg font-bold text-green-600 dark:text-green-400">{member.completed}</p>
+                      </div>
+                      <div className="text-right w-14">
+                        <p className="text-xs text-muted-foreground">완료율</p>
+                        <p className="text-lg font-semibold">{member.completionRate}%</p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-lg font-bold">{member.completionRate}%</p>
-                    <p className="text-sm text-muted-foreground">
-                      {member.completed} / {member.total}
-                    </p>
-                    {member.growth !== undefined && member.growth > 0 && (
-                      <p className="text-xs text-green-600 dark:text-green-400">
-                        ↑ 전주 대비 +{member.growth}%
-                      </p>
-                    )}
-                    {member.growth !== undefined && member.growth < 0 && (
-                      <p className="text-xs text-orange-600 dark:text-orange-400">
-                        ↓ 전주 대비 {member.growth}%
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : (
               <p className="text-center text-muted-foreground py-8">
                 데이터가 없습니다.
