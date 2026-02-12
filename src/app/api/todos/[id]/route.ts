@@ -45,6 +45,20 @@ export async function PATCH(
     if (body.completed !== undefined) {
       updateData.completed = body.completed;
       updateData.completedAt = body.completed ? new Date() : null;
+
+      // 완료 시, 동일 내용의 이월 복사본이 있으면 삭제
+      if (body.completed === true && existingTodo.date) {
+        await prisma.todo.deleteMany({
+          where: {
+            userId: existingTodo.userId,
+            content: existingTodo.content,
+            completed: false,
+            carryOverCount: { gt: existingTodo.carryOverCount },
+            date: { gt: existingTodo.date },
+            id: { not: id },
+          },
+        });
+      }
     }
 
     if (body.priority !== undefined) {

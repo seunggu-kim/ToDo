@@ -87,8 +87,19 @@ export async function GET(request: Request) {
 
     const historyData = teamMembers.map((member: typeof teamMembers[number]) => {
       const todos = member.todos;
-      const totalCount = todos.length;
-      const completedCount = todos.filter((t: typeof todos[number]) => t.completed).length;
+
+      // 완료된 업무의 content 목록 (이월 중복 제거용)
+      const completedContents = new Set(
+        todos.filter((t: typeof todos[number]) => t.completed).map((t: typeof todos[number]) => t.content)
+      );
+
+      // 이월 복사본 중 원본이 이미 완료된 것은 제외
+      const filteredTodos = todos.filter((t: typeof todos[number]) =>
+        t.completed || !(t.carryOverCount > 0 && completedContents.has(t.content))
+      );
+
+      const totalCount = filteredTodos.length;
+      const completedCount = filteredTodos.filter((t: typeof todos[number]) => t.completed).length;
 
       // 기간 조회일 경우 started 여부는 큰 의미가 없을 수 있으나, 리스트로 반환
       const dayStarts = member.dayStarts;
@@ -98,7 +109,7 @@ export async function GET(request: Request) {
         name: member.name,
         email: member.email,
         image: member.image,
-        todos,
+        todos: filteredTodos,
         totalCount,
         completedCount,
         progress: totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0,
