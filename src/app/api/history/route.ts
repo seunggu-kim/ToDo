@@ -94,9 +94,27 @@ export async function GET(request: Request) {
       );
 
       // 이월 복사본 중 원본이 이미 완료된 것은 제외
-      const filteredTodos = todos.filter((t: typeof todos[number]) =>
+      const afterCompletedFilter = todos.filter((t: typeof todos[number]) =>
         t.completed || !(t.carryOverCount > 0 && completedContents.has(t.content))
       );
+
+      // 미완료 이월 업무 중 같은 content가 여러 날짜에 있으면 최신 것만 유지
+      const latestPendingByContent = new Map<string, typeof todos[number]>();
+      for (const t of afterCompletedFilter) {
+        if (!t.completed && t.carryOverCount > 0) {
+          const existing = latestPendingByContent.get(t.content);
+          if (!existing || (t.date && existing.date && new Date(t.date) > new Date(existing.date))) {
+            latestPendingByContent.set(t.content, t);
+          }
+        }
+      }
+
+      const filteredTodos = afterCompletedFilter.filter((t: typeof todos[number]) => {
+        if (!t.completed && t.carryOverCount > 0) {
+          return latestPendingByContent.get(t.content)?.id === t.id;
+        }
+        return true;
+      });
 
       const totalCount = filteredTodos.length;
       const completedCount = filteredTodos.filter((t: typeof todos[number]) => t.completed).length;

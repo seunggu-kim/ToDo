@@ -62,6 +62,11 @@ export async function GET(request: Request) {
           },
         });
 
+        // 이전 날짜의 원본 삭제 (중복 데이터 방지)
+        await prisma.todo.delete({
+          where: { id: todo.id },
+        });
+
         carriedCount++;
       }
     }
