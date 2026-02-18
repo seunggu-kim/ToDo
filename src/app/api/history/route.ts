@@ -98,10 +98,10 @@ export async function GET(request: Request) {
         t.completed || !(t.carryOverCount > 0 && completedContents.has(t.content))
       );
 
-      // 미완료 이월 업무 중 같은 content가 여러 날짜에 있으면 최신 것만 유지
+      // 미완료 업무 중 같은 content가 여러 날짜에 있으면 최신 것만 유지
       const latestPendingByContent = new Map<string, typeof todos[number]>();
       for (const t of afterCompletedFilter) {
-        if (!t.completed && t.carryOverCount > 0) {
+        if (!t.completed) {
           const existing = latestPendingByContent.get(t.content);
           if (!existing || (t.date && existing.date && new Date(t.date) > new Date(existing.date))) {
             latestPendingByContent.set(t.content, t);
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
       }
 
       const filteredTodos = afterCompletedFilter.filter((t: typeof todos[number]) => {
-        if (!t.completed && t.carryOverCount > 0) {
+        if (!t.completed && latestPendingByContent.has(t.content)) {
           return latestPendingByContent.get(t.content)?.id === t.id;
         }
         return true;
