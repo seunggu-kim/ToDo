@@ -42,6 +42,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
   const [editPendingImages, setEditPendingImages] = useState<PendingImage[]>([]);
   const [editRemovedImageIds, setEditRemovedImageIds] = useState<string[]>([]);
   const prevCompletedRef = useRef(todo.completed);
+  const editContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // 완료 상태로 변경되었을 때 애니메이션
@@ -100,6 +101,12 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
       editPendingImages.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       setIsEditing(false);
     }
+  };
+
+  const handleBlur = (e: React.FocusEvent) => {
+    // 편집 영역 내부로 포커스가 이동하면 저장하지 않음
+    if (editContainerRef.current?.contains(e.relatedTarget as Node)) return;
+    handleSave();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -202,7 +209,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
           <Input
             value={editContent}
             onChange={(e) => setEditContent(e.target.value)}
-            onBlur={handleSave}
+            onBlur={handleBlur}
             onKeyDown={handleKeyDown}
             className="flex-1"
             autoFocus
@@ -241,7 +248,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
 
       {/* 편집 모드: 이미지 첨부 컴포넌트 */}
       {isEditing && (
-        <div className="pl-9">
+        <div className="pl-9" ref={editContainerRef}>
           <ImageAttachment
             existingImages={visibleExistingImages}
             pendingImages={editPendingImages}
