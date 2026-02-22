@@ -14,6 +14,15 @@ import {
   Draggable,
   DropResult,
 } from "@hello-pangea/dnd";
+import { ImageAttachment } from "@/components/image-attachment";
+import { ImageLightbox } from "@/components/image-lightbox";
+import {
+  validateImageFile,
+  uploadImage,
+  MAX_IMAGES_PER_TODO,
+  type PendingImage,
+  type TodoImage,
+} from "@/lib/image-utils";
 
 interface Todo {
   id: string;
@@ -22,6 +31,7 @@ interface Todo {
   carryOverCount: number;
   date: string | null;
   priority?: number;
+  images?: TodoImage[];
 }
 
 interface TodoTemplate {
@@ -52,6 +62,115 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const backlogInputRef = useRef<HTMLInputElement>(null);
   const templateInputRef = useRef<HTMLInputElement>(null);
+
+  // 이미지 관련 state
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [lightboxImages, setLightboxImages] = useState<TodoImage[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const openLightbox = useCallback((images: TodoImage[], index: number) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
+
+  // 이미지 붙여넣기 핸들러
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+
+      const imageFiles: File[] = [];
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) imageFiles.push(file);
+        }
+      }
+
+      if (imageFiles.length === 0) return;
+      e.preventDefault();
+      addImageFiles(imageFiles);
+    },
+    [pendingImages]
+  );
+
+  // 드래그앤드롭 핸들러
+  const handleDragOverForm = useCallback((e: React.DragEvent) => {
+    if (e.dataTransfer?.types.includes("Files")) {
+      e.preventDefault();
+    }
+  }, []);
+
+  const handleDropForm = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      const files: File[] = [];
+      if (e.dataTransfer?.files) {
+        for (const file of Array.from(e.dataTransfer.files)) {
+          if (file.type.startsWith("image/")) files.push(file);
+        }
+      }
+      if (files.length > 0) addImageFiles(files);
+    },
+    [pendingImages]
+  );
+
+  const addImageFiles = async (files: File[]) => {
+    const remaining = MAX_IMAGES_PER_TODO - pendingImages.length;
+    if (remaining <= 0) {
+      toast.error(`이미지는 최대 ${MAX_IMAGES_PER_TODO}장까지 첨부할 수 있습니다.`);
+      return;
+    }
+
+    const toAdd = files.slice(0, remaining);
+    const newPending: PendingImage[] = [];
+
+    for (const file of toAdd) {
+      const error = validateImageFile(file);
+      if (error) {
+        toast.error(error);
+        continue;
+      }
+
+      newPending.push({
+        id: `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        file,
+        previewUrl: URL.createObjectURL(file),
+        uploading: true,
+        uploaded: false,
+      });
+    }
+
+    if (newPending.length === 0) return;
+
+    setPendingImages((prev) => [...prev, ...newPending]);
+
+    // 비동기 업로드
+    for (const pending of newPending) {
+      try {
+        const result = await uploadImage(pending.file);
+        setPendingImages((prev) =>
+          prev.map((p) =>
+            p.id === pending.id
+              ? { ...p, uploading: false, uploaded: true, blobUrl: result.url }
+              : p
+          )
+        );
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "업로드 실패";
+        setPendingImages((prev) =>
+          prev.map((p) =>
+            p.id === pending.id
+              ? { ...p, uploading: false, error: errorMsg }
+              : p
+          )
+        );
+        toast.error(`${pending.file.name}: ${errorMsg}`);
+      }
+    }
+  };
 
   const fetchTodos = useCallback(async () => {
     try {
@@ -146,9 +265,25 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
 
     if (!newTodo.trim() || isAdding) return;
 
+    // 업로드 중인 이미지가 있으면 대기
+    const uploading = pendingImages.some((p) => p.uploading);
+    if (uploading) {
+      toast.error("이미지 업로드가 진행 중입니다. 잠시 후 다시 시도하세요.");
+      return;
+    }
+
     setIsAdding(true);
     const content = newTodo.trim();
     const dateStr = date.toISOString().split("T")[0];
+
+    // 업로드 완료된 이미지 URL 수집
+    const uploadedImages = pendingImages
+      .filter((p) => p.uploaded && p.blobUrl)
+      .map((p) => ({
+        url: p.blobUrl!,
+        filename: p.file.name,
+        size: p.file.size,
+      }));
 
     const tempTodo: Todo = {
       id: `temp-${Date.now()}`,
@@ -163,6 +298,10 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
     onTodosChange?.(newTodos);
     setNewTodo("");
 
+    // cleanup pending images
+    pendingImages.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+    setPendingImages([]);
+
     setTimeout(() => {
       textareaRef.current?.focus();
     }, 0);
@@ -171,7 +310,11 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
       const response = await fetch("/api/todos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content, date: dateStr }),
+        body: JSON.stringify({
+          content,
+          date: dateStr,
+          ...(uploadedImages.length > 0 ? { images: uploadedImages } : {}),
+        }),
       });
 
       if (response.ok) {
@@ -489,6 +632,35 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
     }
   };
 
+  const handleImagesUpdate = async (
+    id: string,
+    addImages?: { url: string; filename: string; size: number }[],
+    removeImageIds?: string[]
+  ) => {
+    try {
+      const response = await fetch(`/api/todos/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ addImages, removeImageIds }),
+      });
+
+      if (response.ok) {
+        const updated = await response.json();
+        // todo 리스트에서 이미지 업데이트
+        setTodayTodos((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, images: updated.images } : t))
+        );
+        setBacklogTodos((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, images: updated.images } : t))
+        );
+      } else {
+        toast.error("이미지 업데이트에 실패했습니다.");
+      }
+    } catch {
+      toast.error("이미지 업데이트에 실패했습니다.");
+    }
+  };
+
   const handleDelete = async (id: string) => {
     const inToday = todayTodos.find(t => t.id === id);
 
@@ -627,6 +799,8 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
                             onToggle={handleToggle}
                             onUpdate={handleUpdate}
                             onDelete={handleDelete}
+                            onImageClick={openLightbox}
+                            onImagesUpdate={handleImagesUpdate}
                             isBacklog={true}
                           />
                         </div>
@@ -661,21 +835,36 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
               </div>
             )}
 
-            <form onSubmit={handleAddToday} className="flex gap-2">
-              <div className="flex-1">
-                <Textarea
-                  ref={textareaRef}
-                  value={newTodo}
-                  onChange={(e) => setNewTodo(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  placeholder="오늘 할 일 추가... (Enter)"
-                  className="min-h-[50px] max-h-[120px] resize-none text-base shadow-sm"
-                  rows={2}
-                />
+            <form
+              onSubmit={handleAddToday}
+              className="space-y-2"
+              onDragOver={handleDragOverForm}
+              onDrop={handleDropForm}
+            >
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <Textarea
+                    ref={textareaRef}
+                    value={newTodo}
+                    onChange={(e) => setNewTodo(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
+                    placeholder="오늘 할 일 추가... (Enter) / 이미지 붙여넣기 가능"
+                    className="min-h-[50px] max-h-[120px] resize-none text-base shadow-sm"
+                    rows={2}
+                  />
+                </div>
+                <Button type="submit" size="lg" disabled={!newTodo.trim() || isAdding}>
+                  {isAdding ? "..." : "추가"}
+                </Button>
               </div>
-              <Button type="submit" size="lg" disabled={!newTodo.trim() || isAdding}>
-                {isAdding ? "..." : "추가"}
-              </Button>
+
+              {/* 이미지 첨부 영역 */}
+              <ImageAttachment
+                pendingImages={pendingImages}
+                onPendingImagesChange={setPendingImages}
+                onFilesSelected={addImageFiles}
+              />
             </form>
 
             {/* Templates Section */}
@@ -819,6 +1008,8 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
                             onToggle={handleToggle}
                             onUpdate={handleUpdate}
                             onDelete={handleDelete}
+                            onImageClick={openLightbox}
+                            onImagesUpdate={handleImagesUpdate}
                           />
                         </div>
                       )}
@@ -831,6 +1022,15 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
           </Droppable>
         </div>
       </div>
+
+      {/* 라이트박스 */}
+      <ImageLightbox
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        onIndexChange={setLightboxIndex}
+      />
     </DragDropContext>
   );
 }

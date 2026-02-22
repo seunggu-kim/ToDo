@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { ko } from "date-fns/locale";
 import { CheckCircle2, Circle, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import type { TodoImage } from "@/lib/image-utils";
 
 interface Todo {
     id: string;
@@ -15,6 +16,7 @@ interface Todo {
     carryOverCount: number;
     completedAt: string | null;
     date: string; // ISO String
+    images?: TodoImage[];
 }
 
 interface MemberHistoryProps {
@@ -28,9 +30,10 @@ interface MemberHistoryProps {
         completedCount: number;
         progress: number;
     };
+    onImageClick?: (images: TodoImage[], index: number) => void;
 }
 
-export function HistoryMemberCard({ member }: MemberHistoryProps) {
+export function HistoryMemberCard({ member, onImageClick }: MemberHistoryProps) {
     // Sort tasks into completed and pending/unfinished
     // Filter out tasks that are not done
     const completedTasks = member.todos.filter(t => t.completed);
@@ -41,8 +44,27 @@ export function HistoryMemberCard({ member }: MemberHistoryProps) {
         return format(new Date(dateStr), "M.d(eee)", { locale: ko });
     };
 
-    // Group by date for cleaner list? Or just list them?
-    // Let's list them with date badges for context
+    const renderTodoImages = (todo: Todo) => {
+        if (!todo.images || todo.images.length === 0) return null;
+        return (
+            <div className="flex flex-wrap gap-1 mt-1 ml-4">
+                {todo.images.map((img, index) => (
+                    <button
+                        key={img.id}
+                        type="button"
+                        className="w-8 h-8 rounded overflow-hidden border bg-muted hover:ring-2 hover:ring-primary/50 transition-all"
+                        onClick={() => onImageClick?.(todo.images!, index)}
+                    >
+                        <img
+                            src={img.url}
+                            alt={img.filename}
+                            className="w-full h-full object-cover"
+                        />
+                    </button>
+                ))}
+            </div>
+        );
+    };
 
     return (
         <Card className="overflow-hidden">
@@ -92,6 +114,7 @@ export function HistoryMemberCard({ member }: MemberHistoryProps) {
                                                 </Badge>
                                             </span>
                                         </div>
+                                        {renderTodoImages(todo)}
                                     </li>
                                 ))}
                             </ul>
@@ -125,6 +148,7 @@ export function HistoryMemberCard({ member }: MemberHistoryProps) {
                                                 )}
                                             </span>
                                         </div>
+                                        {renderTodoImages(todo)}
                                     </li>
                                 ))}
                             </ul>

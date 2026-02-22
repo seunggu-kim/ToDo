@@ -1,12 +1,14 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import { format, addDays } from "date-fns";
 import { ko } from "date-fns/locale";
 import { HistoryWeekSelector } from "@/components/history-week-selector";
 import { HistoryMemberCard } from "@/components/history-member-card";
+import { ImageLightbox } from "@/components/image-lightbox";
+import type { TodoImage } from "@/lib/image-utils";
 
 interface Todo {
   id: string;
@@ -15,6 +17,7 @@ interface Todo {
   carryOverCount: number;
   completedAt: string | null;
   date: string;
+  images?: TodoImage[];
 }
 
 interface Member {
@@ -41,15 +44,6 @@ export default function HistoryPage() {
     const today = new Date();
     const day = today.getDay(); // 0(Sun) - 6(Sat)
 
-    // Calculate most recent Tuesday
-    // If today is Sun(0) or Mon(1), we want the Tuesday of the PREVIOUS week.
-    // If today is Tue(2) ~ Sat(6), we want THIS week's Tuesday.
-
-    // day < 2 ? -(day + 5) : -(day - 2)
-    // Ex: Mon(1) -> -(1+5) = -6 days (Last Tue)
-    // Ex: Tue(2) -> -(2-2) = 0 days (Today)
-    // Ex: Wed(3) -> -(3-2) = -1 day (Yesterday)
-
     const diffToTue = day < 2 ? -(day + 5) : -(day - 2);
     const start = addDays(today, diffToTue);
     const end = addDays(start, 6); // Mon is 6 days after Tue
@@ -59,6 +53,17 @@ export default function HistoryPage() {
 
   const [historyData, setHistoryData] = useState<HistoryData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  // 라이트박스 state
+  const [lightboxImages, setLightboxImages] = useState<TodoImage[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  const handleImageClick = useCallback((images: TodoImage[], index: number) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  }, []);
 
   const fetchHistory = async (start: Date, end: Date) => {
     setIsLoading(true);
@@ -83,10 +88,6 @@ export default function HistoryPage() {
     }
   };
 
-  // Fetch on mount and when dateRange changes
-  // Actually, let's just use effect for simplicity, 
-  // or trigger fetch when selector changes.
-  // Using effect ensures initial load works too.
   useEffect(() => {
     fetchHistory(dateRange.start, dateRange.end);
   }, [dateRange]);
@@ -126,7 +127,11 @@ export default function HistoryPage() {
 
           <div className="grid gap-6">
             {historyData.members.map((member) => (
-              <HistoryMemberCard key={member.id} member={member} />
+              <HistoryMemberCard
+                key={member.id}
+                member={member}
+                onImageClick={handleImageClick}
+              />
             ))}
           </div>
         </div>
@@ -139,6 +144,15 @@ export default function HistoryPage() {
           </Card>
         )
       )}
+
+      {/* 라이트박스 */}
+      <ImageLightbox
+        images={lightboxImages}
+        currentIndex={lightboxIndex}
+        open={lightboxOpen}
+        onOpenChange={setLightboxOpen}
+        onIndexChange={setLightboxIndex}
+      />
     </div>
   );
 }

@@ -65,6 +65,10 @@ export async function GET(request: Request) {
             carryOverCount: true,
             completedAt: true,
             date: true,
+            images: {
+              select: { id: true, url: true, filename: true },
+              orderBy: { order: "asc" },
+            },
           },
           orderBy: [
             { date: "asc" },

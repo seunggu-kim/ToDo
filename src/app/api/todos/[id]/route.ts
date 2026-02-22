@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { del } from "@vercel/blob";
 
 // 투두 수정
 export async function PATCH(
@@ -78,9 +79,43 @@ export async function PATCH(
       }
     }
 
+    // 이미지 추가
+    if (body.addImages && Array.isArray(body.addImages)) {
+      for (let i = 0; i < body.addImages.length; i++) {
+        const img = body.addImages[i];
+        await prisma.todoImage.create({
+          data: {
+            url: img.url,
+            filename: img.filename,
+            size: img.size,
+            order: img.order ?? i,
+            todoId: id,
+          },
+        });
+      }
+    }
+
+    // 이미지 삭제
+    if (body.removeImageIds && Array.isArray(body.removeImageIds)) {
+      for (const imageId of body.removeImageIds) {
+        const image = await prisma.todoImage.findUnique({ where: { id: imageId } });
+        if (image && image.todoId === id) {
+          await prisma.todoImage.delete({ where: { id: imageId } });
+          // 같은 URL 참조가 없으면 Blob 삭제
+          const otherRefs = await prisma.todoImage.count({
+            where: { url: image.url, id: { not: imageId } },
+          });
+          if (otherRefs === 0) {
+            try { await del(image.url); } catch { /* non-critical */ }
+          }
+        }
+      }
+    }
+
     const todo = await prisma.todo.update({
       where: { id },
       data: updateData,
+      include: { images: { orderBy: { order: "asc" } } },
     });
 
     return NextResponse.json(todo);
@@ -115,6 +150,17 @@ export async function DELETE(
 
     if (existingTodo.userId !== session.user.id) {
       return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+    }
+
+    // 삭제 전 이미지의 Blob 파일 정리
+    const images = await prisma.todoImage.findMany({ where: { todoId: id } });
+    for (const image of images) {
+      const otherRefs = await prisma.todoImage.count({
+        where: { url: image.url, id: { not: image.id } },
+      });
+      if (otherRefs === 0) {
+        try { await del(image.url); } catch { /* non-critical */ }
+      }
     }
 
     await prisma.todo.delete({

@@ -1,7 +1,7 @@
 // Mock API 핸들러
 // NEXT_PUBLIC_MOCK_MODE=true 일 때 실제 API 대신 사용됩니다
 
-import { initialMockData, MockTodo, MockTemplate, MockGoal, MockDataStore } from "./mock-data";
+import { initialMockData, MockTodo, MockTodoImage, MockTemplate, MockGoal, MockDataStore } from "./mock-data";
 
 // Mock 모드 활성화 여부
 export const isMockMode = () => {
@@ -93,6 +93,16 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
     const store = getMockStore();
     const body = JSON.parse(options?.body as string || "{}");
 
+    const images: MockTodoImage[] = (body.images || []).map(
+      (img: { url: string; filename: string; size: number }, i: number) => ({
+        id: generateId(),
+        url: img.url,
+        filename: img.filename,
+        size: img.size,
+        order: i,
+      })
+    );
+
     const newTodo: MockTodo = {
       id: generateId(),
       content: body.content,
@@ -100,6 +110,7 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
       carryOverCount: 0,
       date: body.isBacklog ? null : body.date || null,
       priority: body.priority || 0,
+      images,
     };
 
     store.todos.push(newTodo);
@@ -634,6 +645,20 @@ const mockHandlers: Record<string, (url: URL, options?: RequestInit) => MockResp
     );
 
     return { data: results, status: 200 };
+  },
+
+  // Image upload (mock: returns a fake URL)
+  "POST /api/images/upload": () => {
+    const fakeUrl = `https://mock-blob.vercel-storage.com/images/mock-${Date.now()}.jpg`;
+    return {
+      data: { url: fakeUrl, filename: "mock-image.jpg", size: 102400 },
+      status: 200,
+    };
+  },
+
+  // Image delete
+  "DELETE /api/images/:id": () => {
+    return { data: { message: "삭제되었습니다." }, status: 200 };
   },
 };
 

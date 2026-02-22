@@ -28,12 +28,13 @@ export async function GET(request: Request) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // 어제 날짜의 미완료 투두들 찾기
+    // 어제 날짜의 미완료 투두들 찾기 (이미지 포함)
     const incompleteTodos = await prisma.todo.findMany({
       where: {
         date: yesterday,
         completed: false,
       },
+      include: { images: true },
     });
 
     let carriedCount = 0;
@@ -50,7 +51,7 @@ export async function GET(request: Request) {
       });
 
       if (!existingTodo) {
-        // 새로운 투두 생성 (이월 횟수 증가)
+        // 새로운 투두 생성 (이월 횟수 증가 + 이미지 복사)
         await prisma.todo.create({
           data: {
             content: todo.content,
@@ -59,10 +60,22 @@ export async function GET(request: Request) {
             date: today,
             carryOverCount: todo.carryOverCount + 1,
             priority: todo.priority,
+            ...(todo.images.length > 0
+              ? {
+                  images: {
+                    create: todo.images.map((img) => ({
+                      url: img.url,
+                      filename: img.filename,
+                      size: img.size,
+                      order: img.order,
+                    })),
+                  },
+                }
+              : {}),
           },
         });
 
-        // 이전 날짜의 원본 삭제 (중복 데이터 방지)
+        // 이전 날짜의 원본 삭제 (cascade로 old TodoImage 삭제, Blob URL은 new에서 참조)
         await prisma.todo.delete({
           where: { id: todo.id },
         });

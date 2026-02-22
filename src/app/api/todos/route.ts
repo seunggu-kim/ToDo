@@ -51,6 +51,8 @@ export async function GET(request: Request) {
     const dateParam = searchParams.get("date");
     const backlog = searchParams.get("backlog");
 
+    const includeImages = { images: { orderBy: { order: "asc" as const } } };
+
     // 백로그 조회: 날짜가 없는 할일들
     if (backlog === "true") {
       const todos = await prisma.todo.findMany({
@@ -58,6 +60,7 @@ export async function GET(request: Request) {
           userId: session.user.id,
           date: null,
         },
+        include: includeImages,
         orderBy: [
           { priority: "desc" },
           { createdAt: "asc" },
@@ -75,6 +78,7 @@ export async function GET(request: Request) {
         userId: session.user.id,
         date,
       },
+      include: includeImages,
       orderBy: [
         { priority: "desc" },
         { createdAt: "asc" },
@@ -122,7 +126,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "팀에 속해 있지 않습니다." }, { status: 400 });
     }
 
-    const { content, date: dateParam, isBacklog } = await request.json();
+    const { content, date: dateParam, isBacklog, images } = await request.json();
 
     if (!content || content.trim() === "") {
       return NextResponse.json({ error: "내용을 입력해주세요." }, { status: 400 });
@@ -141,7 +145,22 @@ export async function POST(request: Request) {
         date,
         userId: session.user.id,
         teamId: user.teamId,
+        ...(images && images.length > 0
+          ? {
+              images: {
+                create: images.map(
+                  (img: { url: string; filename: string; size: number }, i: number) => ({
+                    url: img.url,
+                    filename: img.filename,
+                    size: img.size,
+                    order: i,
+                  })
+                ),
+              },
+            }
+          : {}),
       },
+      include: { images: { orderBy: { order: "asc" } } },
     });
 
     return NextResponse.json(todo, { status: 201 });

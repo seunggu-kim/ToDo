@@ -1,6 +1,14 @@
 // Mock 데이터 정의
 // NEXT_PUBLIC_MOCK_MODE=true 일 때 사용됩니다
 
+export interface MockTodoImage {
+  id: string;
+  url: string;
+  filename: string;
+  size: number;
+  order: number;
+}
+
 export interface MockTodo {
   id: string;
   content: string;
@@ -8,6 +16,7 @@ export interface MockTodo {
   carryOverCount: number;
   date: string | null;
   priority: number;
+  images?: MockTodoImage[];
 }
 
 export interface MockTemplate {

@@ -93,11 +93,26 @@ model Todo {
   userId String
   teamId String
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user   User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team   Team        @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  images TodoImage[]
 
   @@index([userId, date])
   @@index([teamId, date])
+}
+
+model TodoImage {
+  id        String   @id @default(cuid())
+  url       String
+  filename  String
+  size      Int
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+
+  todoId String
+  todo   Todo @relation(fields: [todoId], references: [id], onDelete: Cascade)
+
+  @@index([todoId])
 }
 
 model DayStart {
