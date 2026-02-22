@@ -46,6 +46,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
   const prevCompletedRef = useRef(todo.completed);
   const editContainerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
+  const quickFileInputRef = useRef<HTMLInputElement>(null);
 
   const images = todo.images || [];
 
@@ -126,10 +127,37 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
     setEditRemovedImageIds((prev) => [...prev, imageId]);
   };
 
-  // 이미지 업로드 공통 함수 (편집 모드 + 드래그앤드롭 모두 사용)
-  const addFiles = useCallback(async (files: File[]) => {
-    const currentImages = (todo.images || []).length - editRemovedImageIds.length;
-    const remaining = MAX_IMAGES_PER_TODO - currentImages - editPendingImages.length;
+  // 이미지 즉시 저장 (편집 모드 없이 바로 서버에 반영)
+  const addFilesImmediate = useCallback(async (files: File[]) => {
+    const currentImages = (todo.images || []).length;
+    const remaining = MAX_IMAGES_PER_TODO - currentImages;
+    if (remaining <= 0) {
+      toast.error(`이미지는 최대 ${MAX_IMAGES_PER_TODO}장까지 첨부할 수 있습니다.`);
+      return;
+    }
+
+    const toAdd = files.slice(0, remaining);
+
+    for (const file of toAdd) {
+      const error = validateImageFile(file);
+      if (error) { toast.error(error); continue; }
+
+      try {
+        const result = await uploadImage(file);
+        // 업로드 즉시 서버에 저장
+        onImagesUpdate?.(todo.id, [{ url: result.url, filename: result.filename, size: result.size }]);
+        toast.success("이미지가 첨부되었습니다.");
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : "업로드 실패";
+        toast.error(`${file.name}: ${errorMsg}`);
+      }
+    }
+  }, [todo, onImagesUpdate]);
+
+  // 편집 모드 전용 이미지 추가 (Enter로 저장)
+  const addFilesEdit = useCallback(async (files: File[]) => {
+    const existingCount = (todo.images || []).length - editRemovedImageIds.length;
+    const remaining = MAX_IMAGES_PER_TODO - existingCount - editPendingImages.length;
     if (remaining <= 0) {
       toast.error(`이미지는 최대 ${MAX_IMAGES_PER_TODO}장까지 첨부할 수 있습니다.`);
       return;
@@ -151,14 +179,6 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
     }
 
     if (newPending.length === 0) return;
-
-    // 편집 모드가 아니면 자동 진입
-    if (!isEditing) {
-      setEditContent(todo.content);
-      setEditRemovedImageIds([]);
-      setIsEditing(true);
-    }
-
     setEditPendingImages((prev) => [...prev, ...newPending]);
 
     for (const pending of newPending) {
@@ -183,7 +203,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
         toast.error(`${pending.file.name}: ${errorMsg}`);
       }
     }
-  }, [todo, isEditing, editPendingImages, editRemovedImageIds]);
+  }, [todo, editPendingImages, editRemovedImageIds]);
 
   // 카드 위에 드래그앤드롭
   const handleDragOver = (e: React.DragEvent) => {
@@ -214,7 +234,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
         if (file.type.startsWith("image/")) files.push(file);
       }
     }
-    if (files.length > 0) addFiles(files);
+    if (files.length > 0) addFilesImmediate(files);
   };
 
   const getPriorityColor = () => {
@@ -276,15 +296,29 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
 
         {/* 편집 모드 아닐 때 이미지 추가 버튼 (항상 보임) */}
         {!isEditing && canAddImage && (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-7 w-7 text-muted-foreground hover:text-primary"
-            onClick={handleStartEdit}
-            title="이미지 첨부"
-          >
-            <ImagePlus className="h-4 w-4" />
-          </Button>
+          <>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-muted-foreground hover:text-primary"
+              onClick={() => quickFileInputRef.current?.click()}
+              title="이미지 첨부"
+            >
+              <ImagePlus className="h-4 w-4" />
+            </Button>
+            <input
+              ref={quickFileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/gif,image/webp"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files || []);
+                if (files.length > 0) addFilesImmediate(files);
+                if (quickFileInputRef.current) quickFileInputRef.current.value = "";
+              }}
+            />
+          </>
         )}
 
         {todo.carryOverCount > 0 && (
@@ -315,7 +349,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
             pendingImages={editPendingImages}
             onPendingImagesChange={setEditPendingImages}
             onRemoveExisting={handleRemoveExisting}
-            onFilesSelected={addFiles}
+            onFilesSelected={addFilesEdit}
           />
         </div>
       )}
