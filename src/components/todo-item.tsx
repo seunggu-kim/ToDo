@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { ImageAttachment } from "@/components/image-attachment";
-import { ImagePlus, Loader2 } from "lucide-react";
+import { ImagePlus, Loader2, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   validateImageFile,
@@ -335,11 +335,12 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
 
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           onClick={() => onDelete(todo.id)}
-          className="text-muted-foreground hover:text-destructive"
+          className="h-8 w-8 shrink-0 text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-colors"
+          title="삭제"
         >
-          삭제
+          <Trash2 className="h-4 w-4" />
         </Button>
       </div>
 

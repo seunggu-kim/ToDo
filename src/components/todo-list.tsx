@@ -678,6 +678,8 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
         });
       }
 
+      toast.success("삭제되었습니다.");
+
       try {
         const response = await fetch(`/api/todos/${id}`, {
           method: "DELETE",
@@ -709,6 +711,8 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
       const previousTodos = [...backlogTodos];
       const newTodos = backlogTodos.filter((t) => t.id !== id);
       setBacklogTodos(newTodos);
+
+      toast.success("삭제되었습니다.");
 
       try {
         const response = await fetch(`/api/todos/${id}`, {
