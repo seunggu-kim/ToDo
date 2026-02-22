@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { ImageAttachment } from "@/components/image-attachment";
-import { ImagePlus } from "lucide-react";
+import { ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import {
   validateImageFile,
@@ -43,6 +43,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
   const [editPendingImages, setEditPendingImages] = useState<PendingImage[]>([]);
   const [editRemovedImageIds, setEditRemovedImageIds] = useState<string[]>([]);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const prevCompletedRef = useRef(todo.completed);
   const editContainerRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -138,13 +139,13 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
 
     const toAdd = files.slice(0, remaining);
 
+    setIsUploading(true);
     for (const file of toAdd) {
       const error = validateImageFile(file);
       if (error) { toast.error(error); continue; }
 
       try {
         const result = await uploadImage(file);
-        // 업로드 즉시 서버에 저장
         onImagesUpdate?.(todo.id, [{ url: result.url, filename: result.filename, size: result.size }]);
         toast.success("이미지가 첨부되었습니다.");
       } catch (err) {
@@ -152,6 +153,7 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
         toast.error(`${file.name}: ${errorMsg}`);
       }
     }
+    setIsUploading(false);
   }, [todo, onImagesUpdate]);
 
   // 편집 모드 전용 이미지 추가 (Enter로 저장)
@@ -380,6 +382,16 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
           <div className="flex items-center gap-2 text-primary font-medium text-sm">
             <ImagePlus className="h-5 w-5" />
             이미지 놓기
+          </div>
+        </div>
+      )}
+
+      {/* 업로드 중 오버레이 */}
+      {isUploading && (
+        <div className="absolute inset-0 bg-background/60 flex items-center justify-center pointer-events-none rounded-lg">
+          <div className="flex items-center gap-2 text-primary font-medium text-sm">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            업로드 중...
           </div>
         </div>
       )}
