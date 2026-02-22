@@ -637,6 +637,21 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
     addImages?: { url: string; filename: string; size: number }[],
     removeImageIds?: string[]
   ) => {
+    // 이미지 삭제 시 optimistic UI 적용
+    const prevToday = [...todayTodos];
+    const prevBacklog = [...backlogTodos];
+
+    if (removeImageIds && removeImageIds.length > 0) {
+      const filterImages = (todos: Todo[]) =>
+        todos.map((t) =>
+          t.id === id
+            ? { ...t, images: (t.images || []).filter((img) => !removeImageIds.includes(img.id)) }
+            : t
+        );
+      setTodayTodos(filterImages);
+      setBacklogTodos(filterImages);
+    }
+
     try {
       const response = await fetch(`/api/todos/${id}`, {
         method: "PATCH",
@@ -646,7 +661,6 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
 
       if (response.ok) {
         const updated = await response.json();
-        // todo 리스트에서 이미지 업데이트
         setTodayTodos((prev) =>
           prev.map((t) => (t.id === id ? { ...t, images: updated.images } : t))
         );
@@ -654,9 +668,14 @@ export function TodoList({ date, onTodosChange, onCalendarUpdate }: TodoListProp
           prev.map((t) => (t.id === id ? { ...t, images: updated.images } : t))
         );
       } else {
+        // 실패 시 롤백
+        setTodayTodos(prevToday);
+        setBacklogTodos(prevBacklog);
         toast.error("이미지 업데이트에 실패했습니다.");
       }
     } catch {
+      setTodayTodos(prevToday);
+      setBacklogTodos(prevBacklog);
       toast.error("이미지 업데이트에 실패했습니다.");
     }
   };

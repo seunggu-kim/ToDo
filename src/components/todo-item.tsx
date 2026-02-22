@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import confetti from "canvas-confetti";
 import { ImageAttachment } from "@/components/image-attachment";
-import { ImagePlus, Loader2, Trash2 } from "lucide-react";
+import { ImagePlus, Loader2, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 import {
   validateImageFile,
@@ -261,13 +261,13 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
       className={cn(
-        "flex flex-col gap-2 p-3 rounded-lg border bg-card transition-colors relative overflow-hidden",
+        "flex flex-col gap-2 p-3 rounded-lg border bg-card transition-colors relative",
         todo.completed && "bg-muted/50",
         isDragOver && "ring-2 ring-primary/50 bg-primary/5"
       )}
     >
       <div className="flex items-center gap-3">
-        <div className={cn("absolute left-0 top-0 bottom-0 w-1", getPriorityColor())} />
+        <div className={cn("absolute left-0 top-0 bottom-0 w-1 rounded-l-lg", getPriorityColor())} />
         <Checkbox
           checked={todo.completed}
           onCheckedChange={(checked) => onToggle(todo.id, checked as boolean)}
@@ -359,20 +359,33 @@ export function TodoItem({ todo, onToggle, onUpdate, onDelete, onImageClick, onI
 
       {/* 보기 모드: 이미지 썸네일 */}
       {!isEditing && images.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pl-9">
+        <div className="flex flex-wrap gap-2 pl-9">
           {images.map((img, index) => (
-            <button
-              key={img.id}
-              type="button"
-              className="w-10 h-10 rounded overflow-hidden border bg-muted hover:ring-2 hover:ring-primary/50 transition-all"
-              onClick={() => onImageClick?.(images, index)}
-            >
-              <img
-                src={img.url}
-                alt={img.filename}
-                className="w-full h-full object-cover"
-              />
-            </button>
+            <div key={img.id} className="relative group">
+              <button
+                type="button"
+                className="w-10 h-10 rounded overflow-hidden border bg-muted hover:ring-2 hover:ring-primary/50 transition-all"
+                onClick={() => onImageClick?.(images, index)}
+              >
+                <img
+                  src={img.url}
+                  alt={img.filename}
+                  className="w-full h-full object-cover"
+                />
+              </button>
+              {!todo.completed && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onImagesUpdate?.(todo.id, undefined, [img.id]);
+                  }}
+                  className="absolute -top-1.5 -right-1.5 z-10 bg-destructive text-destructive-foreground rounded-full p-0.5 shadow-sm opacity-70 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
           ))}
         </div>
       )}
